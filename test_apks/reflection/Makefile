@@ -9,6 +9,9 @@ APP=test_reflection
 PACKAGE=com.example.theseus.reflection
 MAIN_ACTIVITY=MainActivity
 
+JAVAC_ARGS =
+D8_ARGS = 
+
 
 VERSION_B=$(basename $(basename $(VERSION)))
 
@@ -19,6 +22,10 @@ export PATH := $(JAVA_PATH):$(PATH)
 all: $(shell mkdir -p build)
 all: clean build/$(APP).apk
 signature_v1: clean build/$(APP).v1.apk
+
+debug: JAVAC_ARGS += -g
+debug: D8_ARGS += --debug
+debug: all
 
 test: all
 	adb install build/$(APP).apk
@@ -33,11 +40,11 @@ build/%.v1.apk: ./build/%.v1signed.apk
 # TODO: fix dep somehow? cannot find a way to use % or $* in (shell ..)
 build/%/classes: $(shell find java/ -type f -regex ".*\.java" )
 	mkdir -p ./build/$*/classes
-	$(JAVAC) -d ./build/$*/classes -classpath build/deps.jar:$(SDK_TOOLS)/platforms/android-$(VERSION_B)/android.jar $$(find java/$*/ -type f -regex ".*\.java")
+	$(JAVAC) $(JAVAC_ARGS) -d ./build/$*/classes -classpath build/deps.jar:$(SDK_TOOLS)/platforms/android-$(VERSION_B)/android.jar $$(find java/$*/ -type f -regex ".*\.java")
 
 build/%/classes.dex: build/%/classes
 	mkdir -p ./build/$*
-	$(SDK_TOOLS)/build-tools/$(VERSION)/d8 --classpath $(SDK_TOOLS)/platforms/android-$(VERSION_B)/android.jar $(shell find build/$*/classes -type f -regex ".*\.class" -printf "'%p'\n") --output ./build/$*/
+	$(SDK_TOOLS)/build-tools/$(VERSION)/d8 $(D8_ARGS) --classpath $(SDK_TOOLS)/platforms/android-$(VERSION_B)/android.jar $(shell find build/$*/classes -type f -regex ".*\.class" -printf "'%p'\n") --output ./build/$*/
 
 build/%.unsigned.apk: build/classes/classes.dex
 	mkdir -p ./build/$*_files
