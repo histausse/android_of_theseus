@@ -18,6 +18,10 @@ struct Cli {
     out: PathBuf,
     #[arg(short, long)]
     keystore: PathBuf,
+    #[arg(short, long)]
+    zipalign: Option<PathBuf>,
+    #[arg(short, long)]
+    apksigner: Option<PathBuf>,
 }
 
 fn main() {
@@ -67,13 +71,14 @@ fn main() {
         }
         i += 1;
     }
+    // TODO: aapt would be a lot more stable
     apk_frauder::replace_dex(
         cli.apk.path.unwrap(),
         cli.out,
         &mut dex_files,
         cli.keystore,
-        None::<PathBuf>,
-        None::<PathBuf>,
+        cli.zipalign,
+        cli.apksigner,
         None::<HashMap<_, Option<Cursor<&[u8]>>>>,
     );
 }

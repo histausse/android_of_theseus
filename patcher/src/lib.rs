@@ -35,6 +35,8 @@ impl RegistersInfo {
 const INVOKE: &str =
     "Ljava/lang/reflect/Method;->invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;";
 
+// Interesting stuff: https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/reg_type.h;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=94
+// https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/method_verifier.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=5328
 pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<()> {
     let invoke = IdMethod::from_smali(INVOKE)?;
     // checking meth.annotations might be usefull at some point
@@ -124,7 +126,7 @@ fn get_invoke_block(
         from: obj_inst,
         to: reg_inf.first_arg,
     });
-    for i in 0..nb_args {
+    for (i, param) in ref_data.method.proto.get_parameters().iter().enumerate() {
         insns.push(Instruction::Const {
             reg: reg_inf.array_index,
             lit: i as i32,
@@ -133,6 +135,10 @@ fn get_invoke_block(
             dest: reg_inf.array_val,
             arr: arg_arr as u8, // TODO
             idx: reg_inf.array_index,
+        });
+        insns.push(Instruction::CheckCast {
+            reg: reg_inf.array_val,
+            lit: param.clone(),
         });
         insns.push(Instruction::MoveObject {
             from: reg_inf.array_val as u16,
