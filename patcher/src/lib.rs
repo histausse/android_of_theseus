@@ -1,5 +1,6 @@
-use androscalpel::{IdMethod, Instruction, Method};
+use androscalpel::{IdMethod, IdType, Instruction, Method};
 use anyhow::{bail, Context, Result};
+use std::sync::LazyLock;
 
 pub mod get_apk;
 
@@ -19,6 +20,7 @@ struct RegistersInfo {
     pub array_index: u8,
     //pub array: u8,
     pub array_val: u8,
+    pub array: u8,
     //pub original_array_index_reg: Option<u16>,
     //pub original_array_reg: Option<u16>,
     pub first_arg: u16,
@@ -26,19 +28,39 @@ struct RegistersInfo {
 }
 
 impl RegistersInfo {
-    const NB_U8_REG: u16 = 2;
+    const NB_U8_REG: u16 = 3;
     fn get_nb_added_reg(&self) -> u16 {
-        2 + self.nb_arg_reg
+        3 + self.nb_arg_reg
     }
 }
 
-const INVOKE: &str =
-    "Ljava/lang/reflect/Method;->invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;";
+static MTH_INVOKE: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali(
+    "Ljava/lang/reflect/Method;->invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;",
+)
+.unwrap()
+});
+static MTH_GET_NAME: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/reflect/Method;->getName()Ljava/lang/String;").unwrap()
+});
+static MTH_GET_PARAMS_TY: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/reflect/Method;->getParameterTypes()[Ljava/lang/Class;")
+        .unwrap()
+});
+static MTH_GET_RET_TY: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/reflect/Method;->getReturnType()Ljava/lang/Class;").unwrap()
+});
+static MTH_GET_DEC_TY: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/reflect/Method;->getDeclaringClass()Ljava/lang/Class;")
+        .unwrap()
+});
+static STR_EQ: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/String;->equals(Ljava/lang/Object;)Z").unwrap()
+});
 
 // Interesting stuff: https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/reg_type.h;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=94
 // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/method_verifier.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=5328
 pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<()> {
-    let invoke = IdMethod::from_smali(INVOKE)?;
     // checking meth.annotations might be usefull at some point
     let code = meth
         .code
@@ -55,24 +77,31 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
     let mut register_info = RegistersInfo {
         array_index: code.registers_size as u8,
         array_val: (code.registers_size + 1) as u8,
+        array: (code.registers_size + 2) as u8,
         //array: 0,
-        first_arg: code.registers_size + 2,
+        first_arg: code.registers_size + 3,
         nb_arg_reg: 0,
     };
     let mut new_insns = vec![];
     for ins in &code.insns {
         match ins {
-            Instruction::InvokeVirtual { method, args } if method == &invoke => {
+            Instruction::InvokeVirtual { method, args } if method == &*MTH_INVOKE => {
                 // TODO move ret ?
                 // TODO: rever from get_invoke_block failure
-                for ins in
-                    get_invoke_block(ref_data, args.as_slice(), &mut register_info)?.into_iter()
+                let label: String = "TODO_NAME_THIS".into();
+                for ins in get_invoke_block(ref_data, args.as_slice(), &mut register_info, &label)?
+                    .into_iter()
                 {
                     println!("  \x1b[92m{}\x1b[0m", ins.__str__());
                     new_insns.push(ins);
                 }
-                //new_insns.push(ins.clone());
+                new_insns.push(ins.clone());
                 println!("  \x1b[91m{}\x1b[0m", ins.__str__());
+                let lab = Instruction::Label {
+                    name: format!("{label}_END"),
+                };
+                new_insns.push(lab.clone());
+                println!("  \x1b[91m{}\x1b[0m", lab.__str__());
             }
             ins => {
                 println!("  {}", ins.__str__());
@@ -104,8 +133,9 @@ fn get_invoke_block(
     ref_data: &ReflectionData,
     invoke_arg: &[u16],
     reg_inf: &mut RegistersInfo,
+    label: &str,
 ) -> Result<Vec<Instruction>> {
-    let (_method_obj, obj_inst, arg_arr) = if let &[a, b, c] = invoke_arg {
+    let (method_obj, obj_inst, arg_arr) = if let &[a, b, c] = invoke_arg {
         (a, b, c)
     } else {
         bail!(
@@ -121,7 +151,102 @@ fn get_invoke_block(
     if reg_inf.nb_arg_reg < nb_args as u16 + 1 {
         reg_inf.nb_arg_reg = nb_args as u16 + 1;
     }
-    let mut insns = vec![];
+    let mut insns = vec![
+        // Check the runtime method is the right one
+        // Check Name
+        Instruction::InvokeVirtual {
+            method: MTH_GET_NAME.clone(),
+            args: vec![method_obj],
+        },
+        Instruction::MoveResultObject {
+            to: reg_inf.array_index, // wrong name, but available for tmp val
+        },
+        Instruction::ConstString {
+            reg: reg_inf.array_val, // wrong name, but available for tmp val
+            lit: ref_data.method.name.clone(),
+        },
+        Instruction::InvokeVirtual {
+            method: STR_EQ.clone(),
+            args: vec![reg_inf.array_index as u16, reg_inf.array_val as u16],
+        },
+        Instruction::MoveResult {
+            to: reg_inf.array_index, // wrong name, but available for tmp val
+        },
+        Instruction::IfEqZ {
+            a: reg_inf.array_index,
+            label: format!("{label}_END_OF_CALL_1"), // TODO: rename 1
+        },
+        // Check Return Type
+        Instruction::InvokeVirtual {
+            method: MTH_GET_RET_TY.clone(),
+            args: vec![method_obj],
+        },
+        Instruction::MoveResultObject {
+            to: reg_inf.array_index, // wrong name, but available for tmp val
+        },
+        Instruction::ConstClass {
+            reg: reg_inf.array_val, // wrong name, but available for tmp val
+            lit: ref_data.method.proto.get_return_type(),
+        },
+        Instruction::IfNe {
+            a: reg_inf.array_index,
+            b: reg_inf.array_val,
+            label: format!("{label}_END_OF_CALL_1"), // TODO: rename 1
+        },
+        // Check Declaring Type
+        Instruction::InvokeVirtual {
+            method: MTH_GET_DEC_TY.clone(),
+            args: vec![method_obj],
+        },
+        Instruction::MoveResultObject {
+            to: reg_inf.array_index, // wrong name, but available for tmp val
+        },
+        Instruction::ConstClass {
+            reg: reg_inf.array_val, // wrong name, but available for tmp val
+            lit: ref_data.method.class_.clone(),
+        },
+        Instruction::IfNe {
+            a: reg_inf.array_index,
+            b: reg_inf.array_val,
+            label: format!("{label}_END_OF_CALL_1"), // TODO: rename 1
+        },
+    ];
+    // Check for arg type
+    insns.push(Instruction::InvokeVirtual {
+        method: MTH_GET_PARAMS_TY.clone(),
+        args: vec![method_obj],
+    });
+    insns.push(Instruction::MoveResultObject {
+        to: reg_inf.array, // wrong name, but available for tmp val
+    });
+    for (i, param) in ref_data
+        .method
+        .proto
+        .get_parameters()
+        .into_iter()
+        .enumerate()
+    {
+        insns.push(Instruction::Const {
+            reg: reg_inf.array_index,
+            lit: i as i32,
+        });
+        insns.push(Instruction::AGetObject {
+            dest: reg_inf.array_val,
+            arr: reg_inf.array,
+            idx: reg_inf.array_index,
+        });
+        insns.push(Instruction::ConstClass {
+            reg: reg_inf.array_index, // wrong name, but available for tmp val
+            lit: param,
+        });
+        insns.push(Instruction::IfNe {
+            a: reg_inf.array_index,
+            b: reg_inf.array_val,
+            label: format!("{label}_END_OF_CALL_1"), // TODO: rename 1
+        })
+    }
+
+    // Move 'this' to fist arg
     insns.push(Instruction::MoveObject {
         from: obj_inst,
         to: reg_inf.first_arg,
@@ -148,6 +273,12 @@ fn get_invoke_block(
     insns.push(Instruction::InvokeVirtual {
         method: ref_data.method.clone(),
         args: (reg_inf.first_arg..reg_inf.first_arg + 1 + nb_args as u16).collect(),
+    });
+    insns.push(Instruction::Goto {
+        label: format!("{label}_END"),
+    });
+    insns.push(Instruction::Label {
+        name: format!("{label}_END_OF_CALL_1"),
     });
     // We need a few u8 regs here. For now, we assumes we work with less than 256 reg.
     Ok(insns)
