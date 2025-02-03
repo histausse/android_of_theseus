@@ -1,6 +1,6 @@
 use androscalpel::Apk;
 use clap::Args;
-use std::fs::read_to_string;
+use std::fs::{read_to_string, File};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -83,7 +83,7 @@ pub fn get_apk(location: &ApkLocation) -> Apk {
         }
         ApkLocation {
             path: Some(path), ..
-        } => Apk::load_apk(path.into(), false, false).unwrap(),
+        } => Apk::load_apk(File::open(path).unwrap(), |_, _, _| None, false).unwrap(),
         _ => panic!("Don't know what to do with:\n{:#?}", location),
     }
 }

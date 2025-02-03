@@ -50,6 +50,7 @@ public class MainActivity extends Activity {
         ClassLoader cl = MainActivity.class.getClassLoader();
         Class clz = cl.loadClass("com.example.theseus.tests.Reflectee");
         Method mth = clz.getMethod("transfer", String.class);
+        /*
         String name = mth.getName();
         Class[] params = mth.getParameterTypes();
         Class ret = mth.getReturnType();
@@ -60,7 +61,14 @@ public class MainActivity extends Activity {
         Log.e("[TEST]", ret.toString());
         Log.e("[TEST]", dec.toString());
         Log.e("[TEST]", "---------------------------------");
-        if (name.equals("transfer") && Arrays.equals(params, new Class[] {String.class}) && ret == String.class && dec == Reflectee.class) {
+        */
+        Class[] params = mth.getParameterTypes();
+        if (
+            mth.getName().equals("transfer") && 
+            ret == String.class && 
+            dec == Reflectee.class &&
+            params.length == 1 && 
+            params[0] == String.class { 
             Log.e("[TEST]", "OK");
         }
         String newData = (String) mth.invoke(r, data);

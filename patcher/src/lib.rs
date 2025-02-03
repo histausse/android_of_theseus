@@ -1,4 +1,4 @@
-use androscalpel::{IdMethod, IdType, Instruction, Method};
+use androscalpel::{IdMethod, Instruction, Method};
 use anyhow::{bail, Context, Result};
 use std::sync::LazyLock;
 
@@ -83,19 +83,34 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
         nb_arg_reg: 0,
     };
     let mut new_insns = vec![];
-    for ins in &code.insns {
+    let mut iter = code.insns.iter().peekable();
+    while let Some(ins) = iter.next() {
         match ins {
             Instruction::InvokeVirtual { method, args } if method == &*MTH_INVOKE => {
-                // TODO move ret ?
+                let move_ret = match iter.peek() {
+                    Some(Instruction::MoveResult { .. })
+                    | Some(Instruction::MoveResultWide { .. })
+                    | Some(Instruction::MoveResultObject { .. }) => iter.next().cloned(),
+                    _ => None,
+                };
                 // TODO: rever from get_invoke_block failure
                 let label: String = "TODO_NAME_THIS".into();
-                for ins in get_invoke_block(ref_data, args.as_slice(), &mut register_info, &label)?
-                    .into_iter()
+                for ins in get_invoke_block(
+                    ref_data,
+                    args.as_slice(),
+                    &mut register_info,
+                    &label,
+                    move_ret.clone(),
+                )?
+                .into_iter()
                 {
                     println!("  \x1b[92m{}\x1b[0m", ins.__str__());
                     new_insns.push(ins);
                 }
                 new_insns.push(ins.clone());
+                if let Some(move_ret) = move_ret {
+                    new_insns.push(move_ret);
+                }
                 println!("  \x1b[91m{}\x1b[0m", ins.__str__());
                 let lab = Instruction::Label {
                     name: format!("{label}_END"),
@@ -134,6 +149,7 @@ fn get_invoke_block(
     invoke_arg: &[u16],
     reg_inf: &mut RegistersInfo,
     label: &str,
+    move_result: Option<Instruction>,
 ) -> Result<Vec<Instruction>> {
     let (method_obj, obj_inst, arg_arr) = if let &[a, b, c] = invoke_arg {
         (a, b, c)
@@ -216,9 +232,22 @@ fn get_invoke_block(
         method: MTH_GET_PARAMS_TY.clone(),
         args: vec![method_obj],
     });
-    insns.push(Instruction::MoveResultObject {
-        to: reg_inf.array, // wrong name, but available for tmp val
+    insns.push(Instruction::MoveResultObject { to: reg_inf.array });
+    // First check  the number of args
+    insns.push(Instruction::ArrayLength {
+        dest: reg_inf.array_index,
+        arr: reg_inf.array,
     });
+    insns.push(Instruction::Const {
+        reg: reg_inf.array_val,
+        lit: ref_data.method.proto.get_parameters().len() as i32,
+    });
+    insns.push(Instruction::IfNe {
+        a: reg_inf.array_index,
+        b: reg_inf.array_val,
+        label: format!("{label}_END_OF_CALL_1"), // TODO: rename 1
+    });
+    // then the type of each arg
     for (i, param) in ref_data
         .method
         .proto
@@ -274,6 +303,9 @@ fn get_invoke_block(
         method: ref_data.method.clone(),
         args: (reg_inf.first_arg..reg_inf.first_arg + 1 + nb_args as u16).collect(),
     });
+    if let Some(move_result) = move_result {
+        insns.push(move_result);
+    }
     insns.push(Instruction::Goto {
         label: format!("{label}_END"),
     });
