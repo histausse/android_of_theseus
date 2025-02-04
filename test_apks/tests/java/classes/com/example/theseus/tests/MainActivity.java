@@ -65,10 +65,11 @@ public class MainActivity extends Activity {
         Class[] params = mth.getParameterTypes();
         if (
             mth.getName().equals("transfer") && 
-            ret == String.class && 
-            dec == Reflectee.class &&
+            mth.getReturnType() == String.class && 
+            mth.getDeclaringClass() == Reflectee.class &&
             params.length == 1 && 
-            params[0] == String.class { 
+            params[0] == String.class
+        ) { 
             Log.e("[TEST]", "OK");
         }
         String newData = (String) mth.invoke(r, data);
@@ -88,7 +89,13 @@ public class MainActivity extends Activity {
         ClassLoader cl = MainActivity.class.getClassLoader();
         Class clz = cl.loadClass("com.example.theseus.reflection.Reflectee");
         Constructor cst = clz.getDeclaredConstructor(String.class);
-        Object r = cst.newInstance(data);
+        Object r;
+        Class[] args = cst.getParameterTypes();
+        if (args.length == 1 && args[0] == String.class && cst.getDeclaringClass() == Reflectee.class) {
+            r = new Reflectee(data);
+        } else {
+            r = cst.newInstance(data);
+        }
         Method mth = clz.getMethod("transfer", String.class);
         String newData = (String) mth.invoke(r, "");
         Utils.sink(this, newData);
@@ -106,7 +113,14 @@ public class MainActivity extends Activity {
         String data = Utils.source("no reflect constr");
         ClassLoader cl = MainActivity.class.getClassLoader();
         Class clz = cl.loadClass("com.example.theseus.reflection.Reflectee");
-        Object r = clz.newInstance();
+        Object r;
+        if (
+            clz == Reflectee.class
+        ) {
+            r = new Reflectee();
+        } else {
+            r = clz.newInstance();
+        }
         Method mth = clz.getMethod("transfer", String.class);
         String newData = (String) mth.invoke(r, data);
         Utils.sink(this, newData);
