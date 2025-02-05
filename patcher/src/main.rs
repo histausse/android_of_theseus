@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::path::PathBuf;
 
-use androscalpel::{IdMethod, IdType};
+use androscalpel::IdMethod;
 
 use patcher::get_apk::{get_apk, ApkLocation};
 use patcher::{
-    transform_method, ReflectionClassNewInstData, ReflectionCnstrNewInstData, ReflectionInvokeData,
+    transform_method, ReflectionClassNewInstData, ReflectionCnstrNewInstData, ReflectionData,
+    ReflectionInvokeData,
 };
 
 use clap::Parser;
@@ -31,44 +32,82 @@ fn main() {
     let cli = Cli::parse();
     let mut apk = get_apk(&cli.apk);
     //println!("{:#?}", apk.list_classes());
-    let class = apk
-        .get_class_mut(
-            &IdType::new("Lcom/example/theseus/reflection/MainActivity;".into()).unwrap(),
-        )
-        .unwrap();
-    //println!("{:#?}", class.direct_methods.keys());
-    //println!("{:#?}", class.virtual_methods.keys());
-    for m in [
-        "Lcom/example/theseus/reflection/MainActivity;->callVirtualMethodReflectCall()V",
-        "Lcom/example/theseus/reflection/MainActivity;->callConstructorVirtualMethodReflectConstr()V",
-        "Lcom/example/theseus/reflection/MainActivity;->callVirtualMethodReflectOldConst()V",
-    ] {
-        let method = class
-            .virtual_methods
-            .get_mut(&IdMethod::from_smali(m).unwrap())
-            .unwrap();
-        transform_method(
-        method,
-        &ReflectionInvokeData {
-            method: IdMethod::from_smali(
-                "Lcom/example/theseus/reflection/Reflectee;->transfer(Ljava/lang/String;)Ljava/lang/String;",
-            )
-            .unwrap(),
-        },
-        &ReflectionClassNewInstData {
+    let reflection_data = ReflectionData {
+        invoke_data: vec![
+            ReflectionInvokeData {
+                method: IdMethod::from_smali(
+                    "Lcom/example/theseus/reflection/Reflectee;\
+                    ->transfer\
+                    (Ljava/lang/String;)Ljava/lang/String;",
+                )
+                .unwrap(),
+                caller_method: IdMethod::from_smali(
+                    "Lcom/example/theseus/reflection/MainActivity;\
+                    ->callVirtualMethodReflectCall()V",
+                )
+                .unwrap(),
+                addr: 0x2B,
+            },
+            ReflectionInvokeData {
+                method: IdMethod::from_smali(
+                    "Lcom/example/theseus/reflection/Reflectee;\
+                    ->transfer(Ljava/lang/String;)Ljava/lang/String;",
+                )
+                .unwrap(),
+                caller_method: IdMethod::from_smali(
+                    "Lcom/example/theseus/reflection/MainActivity;\
+                    ->callConstructorVirtualMethodReflectConstr()V",
+                )
+                .unwrap(),
+                addr: 0x38,
+            },
+            ReflectionInvokeData {
+                method: IdMethod::from_smali(
+                    "Lcom/example/theseus/reflection/Reflectee;\
+                    ->transfer(Ljava/lang/String;)Ljava/lang/String;",
+                )
+                .unwrap(),
+                caller_method: IdMethod::from_smali(
+                    "Lcom/example/theseus/reflection/MainActivity;\
+                    ->callVirtualMethodReflectOldConst()V",
+                )
+                .unwrap(),
+                addr: 0x28,
+            },
+        ],
+        class_new_inst_data: vec![ReflectionClassNewInstData {
             constructor: IdMethod::from_smali(
-                "Lcom/example/theseus/reflection/Reflectee;-><init>()V",
+                "Lcom/example/theseus/reflection/Reflectee;\
+                -><init>()V",
             )
             .unwrap(),
-        },
-        &ReflectionCnstrNewInstData{
+            caller_method: IdMethod::from_smali(
+                "Lcom/example/theseus/reflection/MainActivity;\
+                ->callVirtualMethodReflectOldConst()V",
+            )
+            .unwrap(),
+            addr: 0x12,
+        }],
+        cnstr_new_inst_data: vec![ReflectionCnstrNewInstData {
             constructor: IdMethod::from_smali(
-                "Lcom/example/theseus/reflection/Reflectee;-><init>(Ljava/lang/String;)V",
+                "Lcom/example/theseus/reflection/Reflectee;\
+                -><init>(Ljava/lang/String;)V",
             )
             .unwrap(),
-        },
-    )
-    .unwrap();
+            caller_method: IdMethod::from_smali(
+                "Lcom/example/theseus/reflection/MainActivity;\
+                ->callConstructorVirtualMethodReflectConstr()V",
+            )
+            .unwrap(),
+            addr: 0x22,
+        }],
+    };
+    for method in reflection_data.get_method_referenced().iter() {
+        let class = apk.get_class_mut(&method.class_).unwrap();
+        //println!("{:#?}", class.direct_methods.keys());
+        //println!("{:#?}", class.virtual_methods.keys());
+        let method = class.virtual_methods.get_mut(method).unwrap();
+        transform_method(method, &reflection_data).unwrap();
     }
     let mut dex_files = vec![];
     let mut files = apk.gen_raw_dex().unwrap();

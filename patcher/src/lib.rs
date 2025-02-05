@@ -1,6 +1,7 @@
 use androscalpel::SmaliName;
 use androscalpel::{IdMethod, Instruction, Method};
 use anyhow::{bail, Context, Result};
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 pub mod get_apk;
@@ -10,19 +11,124 @@ pub mod get_apk;
 // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/reflection.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=698
 // does.
 
-/// Structure storing the runtime information of a reflection call.
+#[derive(Clone, PartialEq, Debug)]
+pub struct ReflectionData {
+    pub invoke_data: Vec<ReflectionInvokeData>,
+    pub class_new_inst_data: Vec<ReflectionClassNewInstData>,
+    pub cnstr_new_inst_data: Vec<ReflectionCnstrNewInstData>,
+}
+
+impl ReflectionData {
+    /// List all the methods that made reflection calls.
+    pub fn get_method_referenced(&self) -> HashSet<IdMethod> {
+        self.invoke_data
+            .iter()
+            .map(|data| data.caller_method.clone())
+            .chain(
+                self.class_new_inst_data
+                    .iter()
+                    .map(|data| data.caller_method.clone())
+                    .chain(
+                        self.cnstr_new_inst_data
+                            .iter()
+                            .map(|data| data.caller_method.clone()),
+                    ),
+            )
+            .collect()
+    }
+
+    /// List all data collected from called to `java.lang.reflect.Method.invoke()` made by
+    /// `method`.
+    pub fn get_invoke_data_for(
+        &self,
+        method: &IdMethod,
+    ) -> HashMap<String, Vec<ReflectionInvokeData>> {
+        let mut data = HashMap::new();
+        for val in self
+            .invoke_data
+            .iter()
+            .filter(|data| &data.caller_method == method)
+        {
+            let key = format!("THESEUS_ADDR_{:08X}", val.addr);
+            let entry = data.entry(key).or_insert(vec![]);
+            entry.push(val.clone());
+        }
+        data
+    }
+    /// List all data collected from called to `java.lang.Class.newInstance()` made by
+    /// `method`.
+    pub fn get_class_new_instance_data_for(
+        &self,
+        method: &IdMethod,
+    ) -> HashMap<String, Vec<ReflectionClassNewInstData>> {
+        let mut data = HashMap::new();
+        for val in self
+            .class_new_inst_data
+            .iter()
+            .filter(|data| &data.caller_method == method)
+        {
+            let key = format!("THESEUS_ADDR_{:08X}", val.addr);
+            let entry = data.entry(key).or_insert(vec![]);
+            entry.push(val.clone());
+        }
+        data
+    }
+    /// List all data collected from called to `java.lang.reflect.Constructor.newInstance()` made by
+    /// `method`.
+    pub fn get_cnstr_new_instance_data_for(
+        &self,
+        method: &IdMethod,
+    ) -> HashMap<String, Vec<ReflectionCnstrNewInstData>> {
+        let mut data = HashMap::new();
+        for val in self
+            .cnstr_new_inst_data
+            .iter()
+            .filter(|data| &data.caller_method == method)
+        {
+            let key = format!("THESEUS_ADDR_{:08X}", val.addr);
+            let entry = data.entry(key).or_insert(vec![]);
+            entry.push(val.clone());
+        }
+        data
+    }
+}
+
+/// Structure storing the runtime information of a reflection call using
+/// `java.lang.reflect.Method.invoke()`.
+#[derive(Clone, PartialEq, Debug)]
 pub struct ReflectionInvokeData {
+    /// The method called by `java.lang.reflect.Method.invoke()`
     pub method: IdMethod,
+    /// The method calling `java.lang.reflect.Method.invoke()`
+    pub caller_method: IdMethod,
+    /// Address where the call to `java.lang.reflect.Method.invoke()` was made in `caller_method`.
+    pub addr: usize,
     // TODO: variable number of args?
     // TODO: type of invoke?
 }
 
+/// Structure storing the runtime information of a reflection instanciation using
+/// `java.lang.Class.newInstance()`.
+#[derive(Clone, PartialEq, Debug)]
 pub struct ReflectionClassNewInstData {
+    /// The constructor called by `java.lang.Class.newInstance()`
     pub constructor: IdMethod,
+    /// The method calling `java.lang.Class.newInstance()`
+    pub caller_method: IdMethod,
+    /// Address where the call to `java.lang.Class.newInstance()` was made in `caller_method`.
+    pub addr: usize,
 }
 
+/// Structure storing the runtime information of a reflection instanciation using
+/// `java.lang.reflect.Constructor.newInstance()`.
+#[derive(Clone, PartialEq, Debug)]
 pub struct ReflectionCnstrNewInstData {
+    /// The constructor calleb by `java.lang.reflect.Constructor.newInstance()`
     pub constructor: IdMethod,
+    /// The method calling `java.lang.reflect.Constructor.newInstance()`
+    pub caller_method: IdMethod,
+    /// Address where the call to `java.lang.Class.newInstance()` was made in `caller_method`.
+    pub addr: usize,
 }
 
 pub struct RegistersInfo {
@@ -84,15 +190,29 @@ static CNSTR_GET_DEC_CLS: LazyLock<IdMethod> = LazyLock::new(|| {
         .unwrap()
 });
 
+/// Function passed to [`androscalpel::Apk::load_apk`] to label the instructions of interest.
+fn labeling(_mth: &IdMethod, ins: &Instruction, addr: usize) -> Option<String> {
+    match ins {
+        Instruction::InvokeVirtual { method, .. }
+            if method == &*MTH_INVOKE
+                || method == &*CLASS_NEW_INST
+                || method == &*CNSTR_NEW_INST =>
+        {
+            Some(format!("THESEUS_ADDR_{addr:08X}"))
+        }
+        _ => None,
+    }
+}
+
 // Interesting stuff: https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/reg_type.h;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=94
 // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/method_verifier.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=5328
-pub fn transform_method(
-    meth: &mut Method,
-    ref_invoke_data: &ReflectionInvokeData,
-    ref_class_new_inst_data: &ReflectionClassNewInstData,
-    ref_cnstr_new_inst_data: &ReflectionCnstrNewInstData,
-) -> Result<()> {
+pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<()> {
     // checking meth.annotations might be usefull at some point
+    //println!("{}", meth.descriptor.__str__());
+    let invoke_data = ref_data.get_invoke_data_for(&meth.descriptor);
+    let class_new_inst_data = ref_data.get_class_new_instance_data_for(&meth.descriptor);
+    let cnstr_new_inst_data = ref_data.get_cnstr_new_instance_data_for(&meth.descriptor);
+
     let code = meth
         .code
         .as_mut()
@@ -111,13 +231,16 @@ pub fn transform_method(
     };
     let mut new_insns = vec![];
     let mut iter = code.insns.iter();
+    let mut current_addr_label: Option<String> = None;
     while let Some(ins) = iter.next() {
         match ins {
             Instruction::InvokeVirtual { method, args }
-                if method == &*MTH_INVOKE
+                if (method == &*MTH_INVOKE
                     || method == &*CLASS_NEW_INST
-                    || method == &*CNSTR_NEW_INST =>
+                    || method == &*CNSTR_NEW_INST)
+                    && current_addr_label.is_some() =>
             {
+                let addr_label = current_addr_label.as_ref().unwrap();
                 let (pseudo_insns, move_ret) = get_move_result(iter.clone());
                 if move_ret.is_some() {
                     while move_ret.as_ref() != iter.next() {}
@@ -130,36 +253,45 @@ pub fn transform_method(
                     panic!("Should not happen!")
                 };
                 // TODO: recover from failure
-                let ins_block = if method == &*MTH_INVOKE {
-                    get_invoke_block(
-                        ref_invoke_data,
-                        args.as_slice(),
-                        &mut register_info,
-                        &end_label,
-                        move_ret.clone(),
-                    )?
+                if method == &*MTH_INVOKE {
+                    for ref_data in invoke_data.get(addr_label).unwrap_or(&vec![]) {
+                        for ins in get_invoke_block(
+                            ref_data,
+                            args.as_slice(),
+                            &mut register_info,
+                            &end_label,
+                            move_ret.clone(),
+                        )? {
+                            new_insns.push(ins);
+                        }
+                    }
                 } else if method == &*CLASS_NEW_INST {
-                    get_class_new_inst_block(
-                        ref_class_new_inst_data,
-                        args.as_slice(),
-                        &mut register_info,
-                        &end_label,
-                        move_ret.clone(),
-                    )?
+                    for ref_data in class_new_inst_data.get(addr_label).unwrap_or(&vec![]) {
+                        for ins in get_class_new_inst_block(
+                            ref_data,
+                            args.as_slice(),
+                            &mut register_info,
+                            &end_label,
+                            move_ret.clone(),
+                        )? {
+                            new_insns.push(ins);
+                        }
+                    }
                 } else if method == &*CNSTR_NEW_INST {
-                    get_cnstr_new_inst_block(
-                        ref_cnstr_new_inst_data,
-                        args.as_slice(),
-                        &mut register_info,
-                        &end_label,
-                        move_ret.clone(),
-                    )?
+                    for ref_data in cnstr_new_inst_data.get(addr_label).unwrap_or(&vec![]) {
+                        for ins in get_cnstr_new_inst_block(
+                            ref_data,
+                            args.as_slice(),
+                            &mut register_info,
+                            &end_label,
+                            move_ret.clone(),
+                        )? {
+                            new_insns.push(ins);
+                        }
+                    }
                 } else {
                     panic!("Should not happen!")
                 };
-                for ins in ins_block.into_iter() {
-                    new_insns.push(ins);
-                }
                 new_insns.push(ins.clone());
                 if let Some(move_ret) = move_ret {
                     for ins in pseudo_insns.into_iter() {
@@ -169,8 +301,16 @@ pub fn transform_method(
                 }
                 let end_label = Instruction::Label { name: end_label };
                 new_insns.push(end_label.clone());
+                current_addr_label = None;
+            }
+            Instruction::Label { name } if name.starts_with("THESEUS_ADDR_") => {
+                current_addr_label = Some(name.clone());
+                new_insns.push(ins.clone());
             }
             ins => {
+                if !ins.is_pseudo_ins() {
+                    current_addr_label = None;
+                }
                 new_insns.push(ins.clone());
             }
         }

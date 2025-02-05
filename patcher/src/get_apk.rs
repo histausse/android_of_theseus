@@ -1,8 +1,11 @@
 use androscalpel::Apk;
 use clap::Args;
 use std::fs::{read_to_string, File};
+use std::io::Cursor;
 use std::path::PathBuf;
 use std::time::Duration;
+
+use crate::labeling;
 
 #[derive(Clone, Args, Debug)]
 pub struct ApkLocation {
@@ -79,11 +82,16 @@ pub fn get_apk(location: &ApkLocation) -> Apk {
                 reqwest::StatusCode::OK => (),
                 s => panic!("Failed to download apk: {:?}", s),
             }
-            Apk::load_apk_bin(&res.bytes().expect("Failed to get APK bytes"), false, false).unwrap()
+            Apk::load_apk(
+                &mut Cursor::new(res.bytes().expect("Failed to get APK bytes")),
+                labeling,
+                false,
+            )
+            .unwrap()
         }
         ApkLocation {
             path: Some(path), ..
-        } => Apk::load_apk(File::open(path).unwrap(), |_, _, _| None, false).unwrap(),
+        } => Apk::load_apk(File::open(path).unwrap(), labeling, false).unwrap(),
         _ => panic!("Don't know what to do with:\n{:#?}", location),
     }
 }
