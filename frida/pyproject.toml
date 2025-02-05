@@ -1,0 +1,23 @@
+[project]
+name = "theseus-frida"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Jean-Marie Mineau",email = "jean-marie.mineau@inria.fr"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<4.0.0"
+dependencies = [
+    "frida (>=16.6.6,<17.0.0)",
+    "frida-tools (>=13.6.1,<14.0.0)",
+    "androguard (>=4.1.2,<5.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+collect-reflection-data  = 'theseus_frida.__init__:main'
+
