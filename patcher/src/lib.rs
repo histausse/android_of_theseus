@@ -4,14 +4,14 @@ use anyhow::{bail, Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
-pub mod get_apk;
+use serde::{Deserialize, Serialize};
 
 // TODO:
 // Check what
 // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/reflection.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=698
 // does.
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
 pub struct ReflectionData {
     pub invoke_data: Vec<ReflectionInvokeData>,
     pub class_new_inst_data: Vec<ReflectionClassNewInstData>,
@@ -95,7 +95,7 @@ impl ReflectionData {
 
 /// Structure storing the runtime information of a reflection call using
 /// `java.lang.reflect.Method.invoke()`.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
 pub struct ReflectionInvokeData {
     /// The method called by `java.lang.reflect.Method.invoke()`
     pub method: IdMethod,
@@ -109,7 +109,7 @@ pub struct ReflectionInvokeData {
 
 /// Structure storing the runtime information of a reflection instanciation using
 /// `java.lang.Class.newInstance()`.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
 pub struct ReflectionClassNewInstData {
     /// The constructor called by `java.lang.Class.newInstance()`
     pub constructor: IdMethod,
@@ -121,7 +121,7 @@ pub struct ReflectionClassNewInstData {
 
 /// Structure storing the runtime information of a reflection instanciation using
 /// `java.lang.reflect.Constructor.newInstance()`.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
 pub struct ReflectionCnstrNewInstData {
     /// The constructor calleb by `java.lang.reflect.Constructor.newInstance()`
     pub constructor: IdMethod,
@@ -191,7 +191,7 @@ static CNSTR_GET_DEC_CLS: LazyLock<IdMethod> = LazyLock::new(|| {
 });
 
 /// Function passed to [`androscalpel::Apk::load_apk`] to label the instructions of interest.
-fn labeling(_mth: &IdMethod, ins: &Instruction, addr: usize) -> Option<String> {
+pub fn labeling(_mth: &IdMethod, ins: &Instruction, addr: usize) -> Option<String> {
     match ins {
         Instruction::InvokeVirtual { method, .. }
             if method == &*MTH_INVOKE

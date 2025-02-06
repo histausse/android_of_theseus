@@ -1,13 +1,14 @@
 use std::collections::HashMap;
-use std::io::Cursor;
+use std::fs::File;
+use std::io::{Cursor, Read};
 use std::path::PathBuf;
 
-use androscalpel::IdMethod;
+use androscalpel::Apk;
 
-use patcher::get_apk::{get_apk, ApkLocation};
 use patcher::{
-    transform_method, ReflectionClassNewInstData, ReflectionCnstrNewInstData, ReflectionData,
-    ReflectionInvokeData,
+    labeling,
+    transform_method,
+    ReflectionData, // ReflectionInvokeData, ReflectionClassNewInstData, ReflectionCnstrNewInstData,
 };
 
 use clap::Parser;
@@ -15,8 +16,6 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None, arg_required_else_help = true)]
 struct Cli {
-    #[clap(flatten)]
-    apk: ApkLocation,
     #[arg(short, long)]
     out: PathBuf,
     #[arg(short, long)]
@@ -25,13 +24,24 @@ struct Cli {
     zipalign: Option<PathBuf>,
     #[arg(short, long)]
     apksigner: Option<PathBuf>,
+    #[arg(short, long)]
+    path: PathBuf,
+    #[arg(short, long)]
+    reflection_data: PathBuf,
 }
 
 fn main() {
     env_logger::init();
     let cli = Cli::parse();
-    let mut apk = get_apk(&cli.apk);
+    let mut apk = Apk::load_apk(File::open(&cli.path).unwrap(), labeling, false).unwrap();
     //println!("{:#?}", apk.list_classes());
+    let mut json = String::new();
+    File::open(&cli.reflection_data)
+        .unwrap()
+        .read_to_string(&mut json)
+        .unwrap();
+    let reflection_data: ReflectionData = serde_json::from_str(&json).unwrap();
+    /*
     let reflection_data = ReflectionData {
         invoke_data: vec![
             ReflectionInvokeData {
@@ -102,12 +112,15 @@ fn main() {
             addr: 0x22,
         }],
     };
+    println!("{}", serde_json::to_string(&reflection_data).unwrap());
+    */
     for method in reflection_data.get_method_referenced().iter() {
-        let class = apk.get_class_mut(&method.class_).unwrap();
-        //println!("{:#?}", class.direct_methods.keys());
-        //println!("{:#?}", class.virtual_methods.keys());
-        let method = class.virtual_methods.get_mut(method).unwrap();
-        transform_method(method, &reflection_data).unwrap();
+        if let Some(class) = apk.get_class_mut(&method.class_) {
+            //println!("{:#?}", class.direct_methods.keys());
+            //println!("{:#?}", class.virtual_methods.keys());
+            let method = class.virtual_methods.get_mut(method).unwrap();
+            transform_method(method, &reflection_data).unwrap();
+        }
     }
     let mut dex_files = vec![];
     let mut files = apk.gen_raw_dex().unwrap();
@@ -127,7 +140,7 @@ fn main() {
     }
     // TODO: aapt would be a lot more stable
     apk_frauder::replace_dex(
-        cli.apk.path.unwrap(),
+        cli.path,
         cli.out,
         &mut dex_files,
         cli.keystore,
