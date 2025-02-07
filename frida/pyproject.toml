@@ -21,3 +21,8 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 collect-reflection-data  = 'theseus_frida.__init__:main'
 
+[tool.poetry]
+include = [
+  { path = "theseus_frida/hook.js", format = ["sdist", "wheel"] },
+  { path = "theseus_frida/StackConsumer.dex.b64", format = ["sdist", "wheel"] }
+]
