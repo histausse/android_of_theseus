@@ -2,6 +2,7 @@ package com.example.theseus;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import com.example.theseus.reflection.Reflectee;
 
 
 public class Utils {
@@ -22,5 +23,12 @@ public class Utils {
 
     public static void sink(Activity ac, String data) {
         popup(ac, "Data leak:", data);
+    }
+
+    public static void testIsObject(Activity ac, Object obj) {
+        popup(ac, "Object", "Object was expected and found");
+    }
+    public static void testIsReflectee(Activity ac, Reflectee ref) {
+        popup(ac, "Reflectee", "Reflectee was expected and found");
     }
 }
