@@ -814,6 +814,7 @@ dependencies = [
  "apk_frauder",
  "clap",
  "env_logger",
+ "log",
  "reqwest",
  "serde",
  "serde_json",

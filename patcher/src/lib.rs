@@ -1,6 +1,7 @@
 use androscalpel::SmaliName;
 use androscalpel::{IdMethod, Instruction, Method};
 use anyhow::{bail, Context, Result};
+use log::warn;
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
@@ -315,14 +316,36 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
             }
         }
     }
-    // TODO: scalar type
     code.insns = vec![];
     // Start the method by moving the parameter to their registers pre-transformation.
-    for i in 0..code.ins_size {
-        code.insns.push(Instruction::MoveObject {
-            from: code.registers_size - code.ins_size + i + register_info.get_nb_added_reg(),
-            to: code.registers_size - code.ins_size + i,
-        });
+    let mut i = 0;
+    for arg in &meth.descriptor.proto.get_parameters() {
+        if arg.is_class() || arg.is_array() {
+            code.insns.push(Instruction::MoveObject {
+                from: code.registers_size - code.ins_size + i + register_info.get_nb_added_reg(),
+                to: code.registers_size - code.ins_size + i,
+            });
+            i += 1;
+        } else if arg.is_long() || arg.is_double() {
+            code.insns.push(Instruction::MoveWide {
+                from: code.registers_size - code.ins_size + i + register_info.get_nb_added_reg(),
+                to: code.registers_size - code.ins_size + i,
+            });
+            i += 2;
+        } else {
+            code.insns.push(Instruction::Move {
+                from: code.registers_size - code.ins_size + i + register_info.get_nb_added_reg(),
+                to: code.registers_size - code.ins_size + i,
+            });
+            i += 1;
+        }
+    }
+    if i != code.ins_size {
+        warn!(
+            "Method {} argument do not match code ins_size ({})",
+            meth.descriptor.__str__(),
+            code.ins_size
+        );
     }
     // Add the new code
     code.insns.append(&mut new_insns);
