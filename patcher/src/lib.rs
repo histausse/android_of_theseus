@@ -1,5 +1,5 @@
 use androscalpel::SmaliName;
-use androscalpel::{IdMethod, Instruction, Method};
+use androscalpel::{IdMethod, IdType, Instruction, Method};
 use anyhow::{bail, Context, Result};
 use log::warn;
 use std::collections::{HashMap, HashSet};
@@ -135,7 +135,7 @@ pub struct ReflectionCnstrNewInstData {
 pub struct RegistersInfo {
     pub array_index: u8,
     //pub array: u8,
-    pub array_val: u8,
+    pub array_val: u8, // Reserver 2 reg here, for wide operation
     pub array: u8,
     //pub original_array_index_reg: Option<u16>,
     //pub original_array_reg: Option<u16>,
@@ -144,9 +144,9 @@ pub struct RegistersInfo {
 }
 
 impl RegistersInfo {
-    const NB_U8_REG: u16 = 3;
+    const NB_U8_REG: u16 = 4; // array_val is a double register
     fn get_nb_added_reg(&self) -> u16 {
-        3 + self.nb_arg_reg
+        4 + self.nb_arg_reg
     }
 }
 
@@ -191,6 +191,48 @@ static CNSTR_GET_DEC_CLS: LazyLock<IdMethod> = LazyLock::new(|| {
         .unwrap()
 });
 
+static OBJ_TO_SCAL_BOOL: LazyLock<IdMethod> =
+    LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Boolean;->booleanValue()Z").unwrap());
+static OBJ_TO_SCAL_BYTE: LazyLock<IdMethod> =
+    LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Byte;->byteValue()B").unwrap());
+static OBJ_TO_SCAL_SHORT: LazyLock<IdMethod> =
+    LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Short;->shortValue()S").unwrap());
+static OBJ_TO_SCAL_CHAR: LazyLock<IdMethod> =
+    LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Character;->charValue()C").unwrap());
+static OBJ_TO_SCAL_INT: LazyLock<IdMethod> =
+    LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Integer;->intValue()I").unwrap());
+static OBJ_TO_SCAL_LONG: LazyLock<IdMethod> =
+    LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Long;->longValue()J").unwrap());
+static OBJ_TO_SCAL_FLOAT: LazyLock<IdMethod> =
+    LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Float;->floatValue()F").unwrap());
+static OBJ_TO_SCAL_DOUBLE: LazyLock<IdMethod> =
+    LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Double;->doubleValue()D").unwrap());
+static SCAL_TO_OBJ_BOOL: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/Boolean;->valueOf(Z)Ljava/lang/Boolean;").unwrap()
+});
+static SCAL_TO_OBJ_BYTE: LazyLock<IdMethod> =
+    LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Byte;->valueOf(B)Ljava/lang/Byte;").unwrap());
+static SCAL_TO_OBJ_SHORT: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/Short;->valueOf(S)Ljava/lang/Short;").unwrap()
+});
+static SCAL_TO_OBJ_CHAR: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/Character;->valueOf(C)Ljava/lang/Character;").unwrap()
+});
+static SCAL_TO_OBJ_INT: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;").unwrap()
+});
+static SCAL_TO_OBJ_LONG: LazyLock<IdMethod> =
+    LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Long;->valueOf(J)Ljava/lang/Long;").unwrap());
+static SCAL_TO_OBJ_FLOAT: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/Float;->valueOf(F)Ljava/lang/Float;").unwrap()
+});
+static SCAL_TO_OBJ_DOUBLE: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/Double;->valueOf(D)Ljava/lang/Double;").unwrap()
+});
+
+static OBJECT_TY: LazyLock<IdType> =
+    LazyLock::new(|| IdType::from_smali("Ljava/lang/Object;").unwrap());
+
 /// Function passed to [`androscalpel::Apk::load_apk`] to label the instructions of interest.
 pub fn labeling(_mth: &IdMethod, ins: &Instruction, addr: usize) -> Option<String> {
     match ins {
@@ -225,9 +267,9 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
     let mut register_info = RegistersInfo {
         array_index: code.registers_size as u8,
         array_val: (code.registers_size + 1) as u8,
-        array: (code.registers_size + 2) as u8,
+        array: (code.registers_size + 3) as u8,
         //array: 0,
-        first_arg: code.registers_size + 3,
+        first_arg: code.registers_size + 4,
         nb_arg_reg: 0,
     };
     let mut new_insns = vec![];
@@ -357,14 +399,23 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
 /// Return the MoveResult{,Wide,Object} associated to the last instruction of the iterator.
 /// TODO: return the list of pseudo instruction between the last instruction and the move result.
 fn get_move_result<'a>(
-    mut iter: impl Iterator<Item = &'a Instruction>,
+    iter: impl Iterator<Item = &'a Instruction>,
 ) -> (Vec<Instruction>, Option<Instruction>) {
-    if let Some(ins) = iter.next() {
+    let mut pseudo_insns = vec![];
+    for ins in iter {
+        /*
         match ins {
             Instruction::MoveResult { .. }
             | Instruction::MoveResultWide { .. }
             | Instruction::MoveResultObject { .. } => return (vec![], Some(ins.clone())),
             _ => (), // break,
+        }*/
+        if ins.is_pseudo_ins() {
+            pseudo_insns.push(ins.clone());
+        } else if let Instruction::MoveResultObject { .. } = ins {
+            return (pseudo_insns, Some(ins.clone()));
+        } else {
+            break;
         }
     }
     (vec![], None)
@@ -389,7 +440,13 @@ fn get_invoke_block(
         // TODO
         bail!("Cannot transform invoke calls to a method using 16 bits register for its argument");
     }
-    let nb_args = ref_data.method.proto.get_parameters().len();
+    let nb_args: usize = ref_data
+        .method
+        .proto
+        .get_parameters()
+        .iter()
+        .map(|ty| if ty.is_double() || ty.is_long() { 2 } else { 1 })
+        .sum();
     if reg_inf.nb_arg_reg < nb_args as u16 + 1 {
         reg_inf.nb_arg_reg = nb_args as u16 + 1;
     }
@@ -421,31 +478,55 @@ fn get_invoke_block(
         from: reg_inf.array_val as u16,
         to: reg_inf.first_arg,
     });
-    for (i, param) in ref_data.method.proto.get_parameters().iter().enumerate() {
-        insns.push(Instruction::Const {
-            reg: reg_inf.array_index,
-            lit: i as i32,
-        });
-        insns.push(Instruction::AGetObject {
-            dest: reg_inf.array_val,
-            arr: arg_arr as u8, // TODO
-            idx: reg_inf.array_index,
-        });
-        insns.push(Instruction::CheckCast {
-            reg: reg_inf.array_val,
-            lit: param.clone(),
-        });
-        insns.push(Instruction::MoveObject {
-            from: reg_inf.array_val as u16,
-            to: reg_inf.first_arg + 1 + i as u16,
-        });
-    }
+    insns.append(&mut get_args_from_obj_arr(
+        &ref_data.method.proto.get_parameters(),
+        arg_arr as u8, // TODO
+        reg_inf.first_arg + 1,
+        reg_inf,
+    ));
     insns.push(Instruction::InvokeVirtual {
         method: ref_data.method.clone(),
         args: (reg_inf.first_arg..reg_inf.first_arg + 1 + nb_args as u16).collect(),
     });
     if let Some(move_result) = move_result {
-        insns.push(move_result);
+        let ret_ty = ref_data.method.proto.get_return_type();
+        let res_reg = if let Instruction::MoveResultObject { to } = &move_result {
+            *to
+        } else {
+            panic!(
+                "`move_result` shloud always be a MoveResultObject, found {}",
+                move_result.__str__()
+            )
+        };
+        if ret_ty.is_class() || ret_ty.is_array() {
+            insns.push(move_result);
+        } else if ret_ty.is_double() || ret_ty.is_long() {
+            insns.push(Instruction::MoveResultWide {
+                to: reg_inf.array_val,
+            });
+            insns.push(Instruction::InvokeStatic {
+                method: get_scalar_to_obj_method(&ret_ty).unwrap(),
+                args: vec![reg_inf.array_val as u16],
+            });
+            insns.push(move_result);
+            insns.push(Instruction::CheckCast {
+                reg: res_reg,
+                lit: OBJECT_TY.clone(),
+            });
+        } else {
+            insns.push(Instruction::MoveResult {
+                to: reg_inf.array_val,
+            });
+            insns.push(Instruction::InvokeStatic {
+                method: get_scalar_to_obj_method(&ret_ty).unwrap(),
+                args: vec![reg_inf.array_val as u16],
+            });
+            insns.push(move_result);
+            insns.push(Instruction::CheckCast {
+                reg: res_reg,
+                lit: OBJECT_TY.clone(),
+            });
+        }
     }
     insns.push(Instruction::Goto {
         label: end_label.to_string(),
@@ -453,6 +534,121 @@ fn get_invoke_block(
     insns.push(Instruction::Label { name: abort_label });
     // We need a few u8 regs here. For now, we assumes we work with less than 256 reg.
     Ok(insns)
+}
+
+/// Get the method that convert a object to its scalar conterpart (eg `java.lang.Integer` to `int` with
+/// `Ljava/lang/Integer;->intValue()I`)
+///
+/// `scalar_ty` is the type of the scalar (eg `I`)
+pub fn get_obj_to_scalar_method(scalar_ty: &IdType) -> Result<IdMethod> {
+    if scalar_ty == &IdType::boolean() {
+        Ok(OBJ_TO_SCAL_BOOL.clone())
+    } else if scalar_ty == &IdType::byte() {
+        Ok(OBJ_TO_SCAL_BYTE.clone())
+    } else if scalar_ty == &IdType::short() {
+        Ok(OBJ_TO_SCAL_SHORT.clone())
+    } else if scalar_ty == &IdType::char() {
+        Ok(OBJ_TO_SCAL_CHAR.clone())
+    } else if scalar_ty == &IdType::int() {
+        Ok(OBJ_TO_SCAL_INT.clone())
+    } else if scalar_ty == &IdType::long() {
+        Ok(OBJ_TO_SCAL_LONG.clone())
+    } else if scalar_ty == &IdType::float() {
+        Ok(OBJ_TO_SCAL_FLOAT.clone())
+    } else if scalar_ty == &IdType::double() {
+        Ok(OBJ_TO_SCAL_DOUBLE.clone())
+    } else {
+        bail!("{} is not a scalar", scalar_ty.__str__())
+    }
+}
+
+/// Get the method that convert a scalar to its object conterpart (eg `int` to `java.lang.Integer` with
+/// `Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;`)
+///
+/// `scalar_ty` is the type of the scalar (eg `I`)
+pub fn get_scalar_to_obj_method(scalar_ty: &IdType) -> Result<IdMethod> {
+    if scalar_ty == &IdType::boolean() {
+        Ok(SCAL_TO_OBJ_BOOL.clone())
+    } else if scalar_ty == &IdType::byte() {
+        Ok(SCAL_TO_OBJ_BYTE.clone())
+    } else if scalar_ty == &IdType::short() {
+        Ok(SCAL_TO_OBJ_SHORT.clone())
+    } else if scalar_ty == &IdType::char() {
+        Ok(SCAL_TO_OBJ_CHAR.clone())
+    } else if scalar_ty == &IdType::int() {
+        Ok(SCAL_TO_OBJ_INT.clone())
+    } else if scalar_ty == &IdType::long() {
+        Ok(SCAL_TO_OBJ_LONG.clone())
+    } else if scalar_ty == &IdType::float() {
+        Ok(SCAL_TO_OBJ_FLOAT.clone())
+    } else if scalar_ty == &IdType::double() {
+        Ok(SCAL_TO_OBJ_DOUBLE.clone())
+    } else {
+        bail!("{} is not a scalar", scalar_ty.__str__())
+    }
+}
+
+/// Generate bytecode that put the arguments of types `params` from an [java.lang.Object to
+/// types consecutive registers starting at `first_arg_reg`.
+/// `first_arg_reg` sould be `reg_inf.first_arg` or `reg_inf.first_arg+1` depending on if this
+/// is for a static or virtual call.
+pub fn get_args_from_obj_arr(
+    params: &[IdType],
+    array_reg: u8,
+    first_arg_reg: u16,
+    reg_inf: &mut RegistersInfo,
+) -> Vec<Instruction> {
+    let mut insns = vec![];
+    let mut reg_count = 0;
+    for (i, param) in params.iter().enumerate() {
+        insns.push(Instruction::Const {
+            reg: reg_inf.array_index,
+            lit: i as i32,
+        });
+        insns.push(Instruction::AGetObject {
+            dest: reg_inf.array_val,
+            arr: array_reg,
+            idx: reg_inf.array_index,
+        });
+        if param.is_class() || param.is_array() {
+            insns.push(Instruction::CheckCast {
+                reg: reg_inf.array_val,
+                lit: param.clone(),
+            });
+            insns.push(Instruction::MoveObject {
+                from: reg_inf.array_val as u16,
+                to: first_arg_reg + reg_count,
+            });
+            reg_count += 1;
+        } else if param.is_double() || param.is_long() {
+            insns.push(Instruction::InvokeVirtual {
+                method: get_obj_to_scalar_method(param).unwrap(),
+                args: vec![reg_inf.array_val as u16],
+            });
+            insns.push(Instruction::MoveResultWide {
+                to: reg_inf.array_val,
+            });
+            insns.push(Instruction::MoveWide {
+                from: reg_inf.array_val as u16,
+                to: first_arg_reg + reg_count,
+            });
+            reg_count += 2;
+        } else {
+            insns.push(Instruction::InvokeVirtual {
+                method: get_obj_to_scalar_method(param).unwrap(),
+                args: vec![reg_inf.array_val as u16],
+            });
+            insns.push(Instruction::MoveResult {
+                to: reg_inf.array_val,
+            });
+            insns.push(Instruction::Move {
+                from: reg_inf.array_val as u16,
+                to: first_arg_reg + reg_count,
+            });
+            reg_count += 1;
+        }
+    }
+    insns
 }
 
 /// Generate bytecode that test if a `java.lang.reflect.Method` is equal to an [`IdMethod`]
@@ -614,31 +810,12 @@ fn get_cnstr_new_inst_block(
         abort_label.clone(),
         reg_inf,
     );
-    for (i, param) in ref_data
-        .constructor
-        .proto
-        .get_parameters()
-        .iter()
-        .enumerate()
-    {
-        insns.push(Instruction::Const {
-            reg: reg_inf.array_index,
-            lit: i as i32,
-        });
-        insns.push(Instruction::AGetObject {
-            dest: reg_inf.array_val,
-            arr: arg_arr as u8, // TODO
-            idx: reg_inf.array_index,
-        });
-        insns.push(Instruction::CheckCast {
-            reg: reg_inf.array_val,
-            lit: param.clone(),
-        });
-        insns.push(Instruction::MoveObject {
-            from: reg_inf.array_val as u16,
-            to: reg_inf.first_arg + i as u16 + 1,
-        });
-    }
+    insns.append(&mut get_args_from_obj_arr(
+        &ref_data.constructor.proto.get_parameters(),
+        arg_arr as u8, // TODO
+        reg_inf.first_arg + 1,
+        reg_inf,
+    ));
     insns.push(Instruction::NewInstance {
         reg: reg_inf.first_arg as u8,
         lit: ref_data.constructor.class_.clone(),
