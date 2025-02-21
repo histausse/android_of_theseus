@@ -7,8 +7,6 @@ use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 
-pub mod code_analysis;
-
 // TODO:
 // Check what
 // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/reflection.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=698

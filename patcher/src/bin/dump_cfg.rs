@@ -1,9 +1,7 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-use androscalpel::{Apk, IdMethod};
-
-use patcher::code_analysis::CFG;
+use androscalpel::{Apk, IdMethod, MethodCFG};
 
 use clap::Parser;
 
@@ -27,7 +25,6 @@ fn main() {
     } else {
         class.direct_methods.get(&mid).unwrap()
     };
-    let code = method.code.as_ref().unwrap();
-    let cfg = CFG::new(code.ins_size.into(), &mid.proto, &code.insns).unwrap();
-    print!("{}", cfg.to_dot(&mid.__str__()));
+    let cfg = MethodCFG::new(method).unwrap();
+    print!("{}", cfg.to_dot(true));
 }
