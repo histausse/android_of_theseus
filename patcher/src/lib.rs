@@ -132,22 +132,28 @@ pub struct ReflectionCnstrNewInstData {
     pub addr: usize,
 }
 
-pub struct RegistersInfo {
+/// Information about the register used.
+///
+/// `array_index` and `array` are simple 4 bits register (that is, registers between 0 and 15
+/// included that store 32 bit scalar or object depending on the situation) and `pub array_val` is
+/// a wide 4 bit register (that is, a register between 0 and 15 included plus the next register, so
+/// that it can store 64 bits sclarars in addition to 32 bits scalars and objects depending on the
+/// situation). In theory, those should be encoded in u4 types, but rust does not have those.
+///
+/// Because we can rarely reserved 4 bits registers for a whole method, `array_index_save`, `array_val_save`
+/// and `array_save` are 16 bits registers where we can save the previous contant of the registers
+/// before using them.
+///
+/// `first_arg` is the first register of plage of `nb_arg_reg` use to invoke method.
+struct RegistersInfo {
     pub array_index: u8,
-    //pub array: u8,
-    pub array_val: u8, // Reserver 2 reg here, for wide operation
     pub array: u8,
-    //pub original_array_index_reg: Option<u16>,
-    //pub original_array_reg: Option<u16>,
+    pub array_val: u8, // Reserver 2 reg here, for wide operation
+    pub array_index_save: Option<u16>,
+    pub array_save: Option<u16>,
+    pub array_val_save: Option<u16>, // Reserver 2 reg here, for wide operation
     pub first_arg: u16,
     pub nb_arg_reg: u16,
-}
-
-impl RegistersInfo {
-    const NB_U8_REG: u16 = 4; // array_val is a double register
-    fn get_nb_added_reg(&self) -> u16 {
-        4 + self.nb_arg_reg
-    }
 }
 
 static MTH_INVOKE: LazyLock<IdMethod> = LazyLock::new(|| {
