@@ -1,5 +1,5 @@
 use androscalpel::SmaliName;
-use androscalpel::{IdMethod, IdType, Instruction, Method};
+use androscalpel::{IdMethod, IdType, Instruction, Method, RegType};
 use anyhow::{bail, Context, Result};
 use log::warn;
 use std::collections::{HashMap, HashSet};
@@ -145,6 +145,7 @@ pub struct ReflectionCnstrNewInstData {
 /// before using them.
 ///
 /// `first_arg` is the first register of plage of `nb_arg_reg` use to invoke method.
+#[derive(PartialEq, Debug, Default)]
 struct RegistersInfo {
     pub array_index: u8,
     pub array: u8,
@@ -154,6 +155,386 @@ struct RegistersInfo {
     pub array_val_save: Option<u16>, // Reserver 2 reg here, for wide operation
     pub first_arg: u16,
     pub nb_arg_reg: u16,
+}
+
+impl RegistersInfo {
+    pub fn get_nb_added_reg(&self) -> u16 {
+        self.nb_arg_reg + 4
+    }
+
+    /// Set the values for `array_index`, `array` and `array_val` when the methode already use more
+    /// than 12 registers. This means already used registers need to be saved in order to be used.
+    /// The first instruction vec return contains the instructions to save the registers, the
+    /// second the instructions to restore the registers to their old values.
+    ///
+    /// `used_reg` is a list of register that cannot be used because directly used by the invoke
+    /// instruction or the move-result ibstruction.
+    /// `regs_type` is the type of the registers at this point in the code of the method.
+    pub fn tmp_reserve_reg(
+        &mut self,
+        used_reg: &[u16],
+        regs_type: &[RegType],
+    ) -> Result<(Vec<Instruction>, Vec<Instruction>)> {
+        let mut used_reg = used_reg.to_vec();
+        let mut save_reg_insns = vec![];
+        let mut restore_reg_insns = vec![];
+        if let Some(reg_save) = self.array_val_save {
+            let mut found = false;
+            if reg_save <= 0b1110 {
+                // This should not happend, but who knows?
+                found = true;
+            }
+            if !found {
+                for i in 0..15 {
+                    if i >= regs_type.len() {
+                        break;
+                    }
+                    if !used_reg.contains(&(i as u16))
+                        && !used_reg.contains(&((i + 1) as u16))
+                        && regs_type[i] == RegType::FirstWideScalar
+                        && regs_type[i + 1] == RegType::SecondWideScalar
+                    {
+                        self.array_val = i as u8;
+                        used_reg.push(i as u16);
+                        used_reg.push((i + 1) as u16);
+                        save_reg_insns.push(Instruction::MoveWide {
+                            from: i as u16,
+                            to: reg_save,
+                        });
+                        restore_reg_insns.push(Instruction::MoveWide {
+                            from: reg_save,
+                            to: i as u16,
+                        });
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if !found {
+                for i in 0..15 {
+                    if i >= regs_type.len() {
+                        break;
+                    }
+                    if !used_reg.contains(&(i as u16))
+                        && !used_reg.contains(&((i + 1) as u16))
+                        && (regs_type[i] == RegType::Object
+                            || regs_type[i] == RegType::SimpleScalar
+                            || regs_type[i] == RegType::FirstWideScalar
+                            || regs_type[i] == RegType::SecondWideScalar
+                            || regs_type[i] == RegType::Undefined)
+                        && (regs_type[i + 1] == RegType::Object
+                            || regs_type[i + 1] == RegType::SimpleScalar
+                            || regs_type[i + 1] == RegType::FirstWideScalar
+                            || regs_type[i + 1] == RegType::SecondWideScalar
+                            || regs_type[i + 1] == RegType::Undefined)
+                    {
+                        self.array_val = i as u8;
+                        used_reg.push(i as u16);
+                        used_reg.push((i + 1) as u16);
+                        if regs_type[i] == RegType::Object {
+                            save_reg_insns.push(Instruction::MoveObject {
+                                from: i as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::MoveObject {
+                                from: reg_save,
+                                to: i as u16,
+                            });
+                        } else if regs_type[i] == RegType::SimpleScalar
+                            || regs_type[i] == RegType::FirstWideScalar
+                            || regs_type[i] == RegType::SecondWideScalar
+                        {
+                            save_reg_insns.push(Instruction::Move {
+                                from: i as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::Move {
+                                from: reg_save,
+                                to: i as u16,
+                            });
+                        }
+                        if regs_type[i + 1] == RegType::Object {
+                            save_reg_insns.push(Instruction::MoveObject {
+                                from: (i + 1) as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::MoveObject {
+                                from: reg_save,
+                                to: (i + 1) as u16,
+                            });
+                        } else if regs_type[i + 1] == RegType::SimpleScalar
+                            || regs_type[i] == RegType::FirstWideScalar
+                            || regs_type[i] == RegType::SecondWideScalar
+                        {
+                            save_reg_insns.push(Instruction::Move {
+                                from: (i + 1) as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::Move {
+                                from: reg_save,
+                                to: (i + 1) as u16,
+                            });
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            // Last resort
+            if !found {
+                for i in 0..15 {
+                    if i >= regs_type.len() {
+                        break;
+                    }
+                    if !used_reg.contains(&(i as u16))
+                        && !used_reg.contains(&((i + 1) as u16))
+                        && (regs_type[i] == RegType::Object
+                            || regs_type[i] == RegType::SimpleScalar
+                            || regs_type[i] == RegType::FirstWideScalar
+                            || regs_type[i] == RegType::SecondWideScalar
+                            || regs_type[i] == RegType::Any
+                            || regs_type[i] == RegType::Undefined)
+                        && (regs_type[i + 1] == RegType::Object
+                            || regs_type[i + 1] == RegType::SimpleScalar
+                            || regs_type[i + 1] == RegType::FirstWideScalar
+                            || regs_type[i + 1] == RegType::SecondWideScalar
+                            || regs_type[i] == RegType::Any
+                            || regs_type[i + 1] == RegType::Undefined)
+                    {
+                        self.array_val = i as u8;
+                        used_reg.push(i as u16);
+                        used_reg.push((i + 1) as u16);
+                        if regs_type[i] == RegType::Object {
+                            save_reg_insns.push(Instruction::MoveObject {
+                                from: i as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::MoveObject {
+                                from: reg_save,
+                                to: i as u16,
+                            });
+                        } else if regs_type[i] == RegType::SimpleScalar
+                            || regs_type[i] == RegType::FirstWideScalar
+                            || regs_type[i] == RegType::SecondWideScalar
+                            || regs_type[i] == RegType::Any
+                        {
+                            save_reg_insns.push(Instruction::Move {
+                                from: i as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::Move {
+                                from: reg_save,
+                                to: i as u16,
+                            });
+                        }
+                        if regs_type[i + 1] == RegType::Object {
+                            save_reg_insns.push(Instruction::MoveObject {
+                                from: (i + 1) as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::MoveObject {
+                                from: reg_save,
+                                to: (i + 1) as u16,
+                            });
+                        } else if regs_type[i + 1] == RegType::SimpleScalar
+                            || regs_type[i] == RegType::FirstWideScalar
+                            || regs_type[i] == RegType::SecondWideScalar
+                        {
+                            save_reg_insns.push(Instruction::Move {
+                                from: (i + 1) as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::Move {
+                                from: reg_save,
+                                to: (i + 1) as u16,
+                            });
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    bail!("Could not found enough usable registers to patch the method")
+                }
+            }
+        }
+        if let Some(reg_save) = self.array_index_save {
+            let mut found = false;
+            if reg_save <= 0b1111 {
+                // This should not happend, but who knows?
+                found = true;
+            }
+            if !found {
+                for i in 0..15 {
+                    if i >= regs_type.len() {
+                        break;
+                    }
+                    if !used_reg.contains(&(i as u16)) && regs_type[i] == RegType::SimpleScalar {
+                        self.array_index = i as u8;
+                        used_reg.push(i as u16);
+                        save_reg_insns.push(Instruction::Move {
+                            from: i as u16,
+                            to: reg_save,
+                        });
+                        restore_reg_insns.push(Instruction::Move {
+                            from: reg_save,
+                            to: i as u16,
+                        });
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if !found {
+                for i in 0..15 {
+                    if i >= regs_type.len() {
+                        break;
+                    }
+                    if !used_reg.contains(&(i as u16))
+                        && (regs_type[i] == RegType::Object
+                            || regs_type[i] == RegType::FirstWideScalar
+                            || regs_type[i] == RegType::SecondWideScalar
+                            || regs_type[i] == RegType::Undefined)
+                    {
+                        self.array_index = i as u8;
+                        used_reg.push(i as u16);
+                        if regs_type[i] == RegType::Object {
+                            save_reg_insns.push(Instruction::MoveObject {
+                                from: i as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::MoveObject {
+                                from: reg_save,
+                                to: i as u16,
+                            });
+                        } else if regs_type[i] == RegType::FirstWideScalar
+                            || regs_type[i] == RegType::SecondWideScalar
+                        {
+                            save_reg_insns.push(Instruction::Move {
+                                from: i as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::Move {
+                                from: reg_save,
+                                to: i as u16,
+                            });
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            // Last resort
+            if !found {
+                for i in 0..15 {
+                    if i >= regs_type.len() {
+                        break;
+                    }
+                    if !used_reg.contains(&(i as u16)) && regs_type[i] == RegType::Any {
+                        self.array_index = i as u8;
+                        used_reg.push(i as u16);
+                        save_reg_insns.push(Instruction::Move {
+                            from: i as u16,
+                            to: reg_save,
+                        });
+                        restore_reg_insns.push(Instruction::Move {
+                            from: reg_save,
+                            to: i as u16,
+                        });
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    bail!("Could not found enough usable registers to patch the method")
+                }
+            }
+        }
+        if let Some(reg_save) = self.array_save {
+            let mut found = false;
+            if reg_save <= 0b1111 {
+                // This should not happend, but who knows?
+                found = true;
+            }
+            if !found {
+                for i in 0..15 {
+                    if i >= regs_type.len() {
+                        break;
+                    }
+                    if !used_reg.contains(&(i as u16)) && regs_type[i] == RegType::Object {
+                        self.array = i as u8;
+                        used_reg.push(i as u16);
+                        save_reg_insns.push(Instruction::MoveObject {
+                            from: i as u16,
+                            to: reg_save,
+                        });
+                        restore_reg_insns.push(Instruction::MoveObject {
+                            from: reg_save,
+                            to: i as u16,
+                        });
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if !found {
+                for i in 0..15 {
+                    if i >= regs_type.len() {
+                        break;
+                    }
+                    if !used_reg.contains(&(i as u16))
+                        && (regs_type[i] == RegType::SimpleScalar
+                            || regs_type[i] == RegType::FirstWideScalar
+                            || regs_type[i] == RegType::SecondWideScalar
+                            || regs_type[i] == RegType::Undefined)
+                    {
+                        self.array = i as u8;
+                        used_reg.push(i as u16);
+                        if regs_type[i] == RegType::FirstWideScalar
+                            || regs_type[i] == RegType::SecondWideScalar
+                        {
+                            save_reg_insns.push(Instruction::Move {
+                                from: i as u16,
+                                to: reg_save,
+                            });
+                            restore_reg_insns.push(Instruction::Move {
+                                from: reg_save,
+                                to: i as u16,
+                            });
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            // Last resort
+            if !found {
+                for i in 0..15 {
+                    if i >= regs_type.len() {
+                        break;
+                    }
+                    if !used_reg.contains(&(i as u16)) && regs_type[i] == RegType::Any {
+                        self.array = i as u8;
+                        used_reg.push(i as u16);
+                        save_reg_insns.push(Instruction::Move {
+                            from: i as u16,
+                            to: reg_save,
+                        });
+                        restore_reg_insns.push(Instruction::Move {
+                            from: reg_save,
+                            to: i as u16,
+                        });
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    bail!("Could not found enough usable registers to patch the method")
+                }
+            }
+        }
+        Ok((save_reg_insns, restore_reg_insns))
+    }
 }
 
 static MTH_INVOKE: LazyLock<IdMethod> = LazyLock::new(|| {
@@ -264,20 +645,42 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
 
     let code = meth
         .code
-        .as_mut()
+        .as_ref()
         .with_context(|| format!("Code not found in {}", meth.descriptor.__str__()))?;
-    // TODO
-    if code.registers_size + RegistersInfo::NB_U8_REG > u8::MAX as u16 {
-        bail!("To many registers");
+
+    // Get the available registers at the method level
+    let mut register_info = RegistersInfo::default();
+    // register_info.array_val is a wide reg, so need at least 0b1110 and 0b1111
+    if code.registers_size < 0b1111 {
+        register_info.array_val = code.registers_size as u8;
+    } else {
+        register_info.array_val = 0;
+        register_info.array_val_save = Some(code.registers_size);
     }
-    let mut register_info = RegistersInfo {
-        array_index: code.registers_size as u8,
-        array_val: (code.registers_size + 1) as u8,
-        array: (code.registers_size + 3) as u8,
-        //array: 0,
-        first_arg: code.registers_size + 4,
-        nb_arg_reg: 0,
+    if code.registers_size + 2 <= 0b1111 {
+        register_info.array_index = (code.registers_size + 2) as u8;
+    } else {
+        register_info.array_index = 0;
+        register_info.array_index_save = Some(code.registers_size + 2);
+    }
+    if code.registers_size + 3 <= 0b1111 {
+        register_info.array = (code.registers_size + 3) as u8;
+    } else {
+        register_info.array = 0;
+        register_info.array_save = Some(code.registers_size + 3);
+    }
+    register_info.first_arg = code.registers_size + 4;
+    register_info.nb_arg_reg = 0;
+
+    let regs_type = if register_info.array_val_save.is_none()
+        || register_info.array_index_save.is_none()
+        || register_info.array_save.is_none()
+    {
+        Some(meth.get_cfg()?.get_reg_types())
+    } else {
+        None
     };
+
     let mut new_insns = vec![];
     let mut iter = code.insns.iter();
     let mut current_addr_label: Option<String> = None;
@@ -301,6 +704,47 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
                 } else {
                     panic!("Should not happen!")
                 };
+                let mut restore_reg = vec![];
+                if let Some(regs_type) = regs_type.as_ref() {
+                    if (method == &*MTH_INVOKE && invoke_data.contains_key(addr_label))
+                        || (method == &*CLASS_NEW_INST
+                            && class_new_inst_data.contains_key(addr_label))
+                        || (method == &*CNSTR_NEW_INST
+                            && cnstr_new_inst_data.contains_key(addr_label))
+                    {
+                        let regs_type = regs_type.get(addr_label).unwrap();
+                        let mut used_reg = args.clone();
+                        match move_ret {
+                            Some(Instruction::MoveResult { to }) => used_reg.push(to as u16),
+                            Some(Instruction::MoveResultObject { to }) => used_reg.push(to as u16),
+                            Some(Instruction::MoveResultWide { to }) => used_reg.push(to as u16),
+                            _ => (),
+                        }
+                        match register_info.tmp_reserve_reg(&used_reg, regs_type) {
+                            Ok((mut save_insns, restore_insns)) => {
+                                restore_reg = restore_insns;
+                                new_insns.append(&mut save_insns);
+                            }
+                            Err(err) => {
+                                warn!(
+                                    "Failed to instrument reflection in {} at {}: {}",
+                                    method.__str__(),
+                                    addr_label,
+                                    err,
+                                );
+                                new_insns.push(ins.clone());
+                                if let Some(move_ret) = move_ret.as_ref() {
+                                    for ins in pseudo_insns.iter() {
+                                        new_insns.push(ins.clone());
+                                    }
+                                    new_insns.push(move_ret.clone());
+                                }
+                                current_addr_label = None;
+                                continue;
+                            }
+                        }
+                    }
+                }
                 // TODO: recover from failure
                 if method == &*MTH_INVOKE {
                     for ref_data in invoke_data.get(addr_label).unwrap_or(&vec![]) {
@@ -350,6 +794,7 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
                 }
                 let end_label = Instruction::Label { name: end_label };
                 new_insns.push(end_label.clone());
+                new_insns.append(&mut restore_reg);
                 current_addr_label = None;
             }
             Instruction::Label { name } if name.starts_with("THESEUS_ADDR_") => {
@@ -364,6 +809,11 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
             }
         }
     }
+    let code = meth
+        .code
+        .as_mut()
+        .with_context(|| format!("Code not found in {}", meth.descriptor.__str__()))?;
+
     code.insns = vec![];
     // Start the method by moving the parameter to their registers pre-transformation.
     let mut i = 0;
@@ -486,7 +936,7 @@ fn get_invoke_block(
     });
     insns.append(&mut get_args_from_obj_arr(
         &ref_data.method.proto.get_parameters(),
-        arg_arr as u8, // TODO
+        arg_arr,
         reg_inf.first_arg + 1,
         reg_inf,
     ));
@@ -598,14 +1048,28 @@ pub fn get_scalar_to_obj_method(scalar_ty: &IdType) -> Result<IdMethod> {
 /// types consecutive registers starting at `first_arg_reg`.
 /// `first_arg_reg` sould be `reg_inf.first_arg` or `reg_inf.first_arg+1` depending on if this
 /// is for a static or virtual call.
-pub fn get_args_from_obj_arr(
+fn get_args_from_obj_arr(
     params: &[IdType],
-    array_reg: u8,
+    array_reg: u16,
     first_arg_reg: u16,
     reg_inf: &mut RegistersInfo,
 ) -> Vec<Instruction> {
     let mut insns = vec![];
+    let mut restore_array = vec![];
     let mut reg_count = 0;
+    let array_reg = if array_reg <= 0b1111 {
+        array_reg as u8
+    } else {
+        insns.push(Instruction::MoveObject {
+            from: array_reg,
+            to: reg_inf.array as u16,
+        });
+        restore_array.push(Instruction::MoveObject {
+            from: reg_inf.array as u16,
+            to: array_reg,
+        });
+        reg_inf.array
+    };
     for (i, param) in params.iter().enumerate() {
         insns.push(Instruction::Const {
             reg: reg_inf.array_index,
@@ -654,6 +1118,7 @@ pub fn get_args_from_obj_arr(
             reg_count += 1;
         }
     }
+    insns.append(&mut restore_array);
     insns
 }
 
@@ -662,7 +1127,7 @@ pub fn get_args_from_obj_arr(
 /// - `method_obj_reg`: the register containing the `java.lang.reflect.Method`
 /// - `id_method`: the expected [`IdMethod`].
 /// - `abort_label`: the label where to jump if the method does not match `id_method`.
-pub fn test_method(
+fn test_method(
     method_obj_reg: u16,
     id_method: IdMethod,
     abort_label: String,
@@ -818,14 +1283,25 @@ fn get_cnstr_new_inst_block(
     );
     insns.append(&mut get_args_from_obj_arr(
         &ref_data.constructor.proto.get_parameters(),
-        arg_arr as u8, // TODO
+        arg_arr,
         reg_inf.first_arg + 1,
         reg_inf,
     ));
-    insns.push(Instruction::NewInstance {
-        reg: reg_inf.first_arg as u8,
-        lit: ref_data.constructor.class_.clone(),
-    });
+    if reg_inf.first_arg < u8::MAX as u16 {
+        insns.push(Instruction::NewInstance {
+            reg: reg_inf.first_arg as u8,
+            lit: ref_data.constructor.class_.clone(),
+        });
+    } else {
+        insns.push(Instruction::NewInstance {
+            reg: reg_inf.array_val,
+            lit: ref_data.constructor.class_.clone(),
+        });
+        insns.push(Instruction::MoveObject {
+            from: reg_inf.array_val as u16,
+            to: reg_inf.first_arg,
+        });
+    }
     insns.push(Instruction::InvokeDirect {
         method: ref_data.constructor.clone(),
         args: (reg_inf.first_arg..reg_inf.first_arg + nb_args as u16 + 1).collect(),
@@ -848,7 +1324,7 @@ fn get_cnstr_new_inst_block(
 /// - `method_obj_reg`: the register containing the `java.lang.reflect.Method`
 /// - `id_method`: the expected [`IdMethod`].
 /// - `abort_label`: the label where to jump if the method does not match `id_method`.
-pub fn test_cnstr(
+fn test_cnstr(
     cnst_reg: u16,
     id_method: IdMethod,
     abort_label: String,
