@@ -12,6 +12,16 @@ use serde::{Deserialize, Serialize};
 // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/reflection.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=698
 // does.
 
+/// Inject arbitrary text in the instructions array as 'source file' debug info.
+/// It's cursed, but it work XD
+fn debug_info(data: &str) -> Vec<Instruction> {
+    data.split("\n")
+        .map(|data| Instruction::DebugSourceFile {
+            file: Some(format!("  {data: <70}").into()),
+        })
+        .collect()
+}
+
 #[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
 pub struct ReflectionData {
     pub invoke_data: Vec<ReflectionInvokeData>,
@@ -1140,7 +1150,12 @@ fn test_method(
             args: vec![method_obj_reg],
         },
         Instruction::MoveResultObject { to: reg_inf.array },
-        // First check  the number of args
+    ];
+    // First check  the number of args
+    // TODO: remove, test
+    insns.append(&mut debug_info(&format!("{:#?}", reg_inf)));
+    // --------------------
+    insns.append(&mut vec![
         Instruction::ArrayLength {
             dest: reg_inf.array_index,
             arr: reg_inf.array,
@@ -1154,7 +1169,7 @@ fn test_method(
             b: reg_inf.array_val,
             label: abort_label.clone(),
         },
-    ];
+    ]);
     // then the type of each arg
     for (i, param) in id_method.proto.get_parameters().into_iter().enumerate() {
         insns.push(Instruction::Const {
