@@ -262,7 +262,7 @@ impl RegistersInfo {
                                 from: reg_save,
                                 to: i as u16,
                             });
-                        }
+                        } // else RegType::Undefined, do nothing, just use it
                         if regs_type[i + 1] == RegType::Object {
                             save_reg_insns.push(Instruction::MoveObject {
                                 from: (i + 1) as u16,
@@ -284,7 +284,7 @@ impl RegistersInfo {
                                 from: reg_save,
                                 to: (i + 1) as u16,
                             });
-                        }
+                        } // else RegType::Undefined, do nothing, just use it
                         found = true;
                         break;
                     }
@@ -336,7 +336,7 @@ impl RegistersInfo {
                                 from: reg_save,
                                 to: i as u16,
                             });
-                        }
+                        } // else RegType::Undefined, do nothing, just use it
                         if regs_type[i + 1] == RegType::Object {
                             save_reg_insns.push(Instruction::MoveObject {
                                 from: (i + 1) as u16,
@@ -358,7 +358,7 @@ impl RegistersInfo {
                                 from: reg_save,
                                 to: (i + 1) as u16,
                             });
-                        }
+                        } // else RegType::Undefined, do nothing, just use it
                         found = true;
                         break;
                     }
@@ -428,7 +428,7 @@ impl RegistersInfo {
                                 from: reg_save,
                                 to: i as u16,
                             });
-                        }
+                        } // else RegType::Undefined, do nothing, just use it
                         found = true;
                         break;
                     }
@@ -502,6 +502,7 @@ impl RegistersInfo {
                         used_reg.push(i as u16);
                         if regs_type[i] == RegType::FirstWideScalar
                             || regs_type[i] == RegType::SecondWideScalar
+                            || regs_type[i] == RegType::SimpleScalar
                         {
                             save_reg_insns.push(Instruction::Move {
                                 from: i as u16,
@@ -511,7 +512,7 @@ impl RegistersInfo {
                                 from: reg_save,
                                 to: i as u16,
                             });
-                        }
+                        } // else RegType::Undefined, do nothing, just use it
                         found = true;
                         break;
                     }
@@ -604,6 +605,22 @@ static OBJ_TO_SCAL_FLOAT: LazyLock<IdMethod> =
     LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Float;->floatValue()F").unwrap());
 static OBJ_TO_SCAL_DOUBLE: LazyLock<IdMethod> =
     LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Double;->doubleValue()D").unwrap());
+static OBJ_OF_SCAL_BOOL: LazyLock<IdType> =
+    LazyLock::new(|| IdType::from_smali("Ljava/lang/Boolean;").unwrap());
+static OBJ_OF_SCAL_BYTE: LazyLock<IdType> =
+    LazyLock::new(|| IdType::from_smali("Ljava/lang/Byte;").unwrap());
+static OBJ_OF_SCAL_SHORT: LazyLock<IdType> =
+    LazyLock::new(|| IdType::from_smali("Ljava/lang/Short;").unwrap());
+static OBJ_OF_SCAL_CHAR: LazyLock<IdType> =
+    LazyLock::new(|| IdType::from_smali("Ljava/lang/Character;").unwrap());
+static OBJ_OF_SCAL_INT: LazyLock<IdType> =
+    LazyLock::new(|| IdType::from_smali("Ljava/lang/Integer;").unwrap());
+static OBJ_OF_SCAL_LONG: LazyLock<IdType> =
+    LazyLock::new(|| IdType::from_smali("Ljava/lang/Long;").unwrap());
+static OBJ_OF_SCAL_FLOAT: LazyLock<IdType> =
+    LazyLock::new(|| IdType::from_smali("Ljava/lang/Float;").unwrap());
+static OBJ_OF_SCAL_DOUBLE: LazyLock<IdType> =
+    LazyLock::new(|| IdType::from_smali("Ljava/lang/Double;").unwrap());
 static SCAL_TO_OBJ_BOOL: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali("Ljava/lang/Boolean;->valueOf(Z)Ljava/lang/Boolean;").unwrap()
 });
@@ -640,7 +657,13 @@ pub fn labeling(_mth: &IdMethod, ins: &Instruction, addr: usize) -> Option<Strin
         {
             Some(format!("THESEUS_ADDR_{addr:08X}"))
         }
-        _ => None,
+        _ => {
+            if addr == 0 {
+                Some(format!("DEBUG_{addr:08X}"))
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -682,9 +705,9 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
     register_info.first_arg = code.registers_size + 4;
     register_info.nb_arg_reg = 0;
 
-    let regs_type = if register_info.array_val_save.is_none()
-        || register_info.array_index_save.is_none()
-        || register_info.array_save.is_none()
+    let regs_type = if register_info.array_val_save.is_some()
+        || register_info.array_index_save.is_some()
+        || register_info.array_save.is_some()
     {
         Some(meth.get_cfg()?.get_reg_types())
     } else {
@@ -732,10 +755,32 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
                         }
                         match register_info.tmp_reserve_reg(&used_reg, regs_type) {
                             Ok((mut save_insns, restore_insns)) => {
+                                new_insns
+                                    .append(&mut debug_info(&format!("Reg saved:\n{regs_type:?}")));
+                                new_insns.append(&mut debug_info(&format!(
+                                    "Reg saved:\n{register_info:#?}"
+                                )));
+                                new_insns.append(&mut debug_info(&format!(
+                                    "save reg insns:\n{}",
+                                    save_insns
+                                        .iter()
+                                        .map(|i| "  # ".to_string() + i.__str__().as_str())
+                                        .collect::<Vec<_>>()
+                                        .join("\n")
+                                )));
+                                new_insns.append(&mut debug_info(&format!(
+                                    "restore reg insns:\n{}",
+                                    restore_insns
+                                        .iter()
+                                        .map(|i| "  # ".to_string() + i.__str__().as_str())
+                                        .collect::<Vec<_>>()
+                                        .join("\n")
+                                )));
                                 restore_reg = restore_insns;
                                 new_insns.append(&mut save_insns);
                             }
                             Err(err) => {
+                                new_insns.append(&mut debug_info(&format!("WTF?: {err}")));
                                 warn!(
                                     "Failed to instrument reflection in {} at {}: {}",
                                     method.__str__(),
@@ -754,6 +799,11 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
                             }
                         }
                     }
+                } else {
+                    new_insns.append(&mut debug_info(&format!(
+                        "regs_type is none: {regs_type:#?}"
+                    )));
+                    new_insns.append(&mut debug_info(&format!("Reg used:\n{register_info:#?}")));
                 }
                 // TODO: recover from failure
                 if method == &*MTH_INVOKE {
@@ -827,6 +877,14 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
     code.insns = vec![];
     // Start the method by moving the parameter to their registers pre-transformation.
     let mut i = 0;
+    if !meth.is_static {
+        // Non static method take 'this' as first argument
+        code.insns.push(Instruction::MoveObject {
+            from: code.registers_size - code.ins_size + i + register_info.get_nb_added_reg(),
+            to: code.registers_size - code.ins_size + i,
+        });
+        i += 1;
+    }
     for arg in &meth.descriptor.proto.get_parameters() {
         if arg.is_class() || arg.is_array() {
             code.insns.push(Instruction::MoveObject {
@@ -1028,6 +1086,31 @@ pub fn get_obj_to_scalar_method(scalar_ty: &IdType) -> Result<IdMethod> {
     }
 }
 
+/// Get the object associated to a scalar (eg `java.lang.Integer` for `int`)
+///
+/// `scalar_ty` is the type of the scalar (eg `I`)
+pub fn get_obj_of_scalar(scalar_ty: &IdType) -> Result<IdType> {
+    if scalar_ty == &IdType::boolean() {
+        Ok(OBJ_OF_SCAL_BOOL.clone())
+    } else if scalar_ty == &IdType::byte() {
+        Ok(OBJ_OF_SCAL_BYTE.clone())
+    } else if scalar_ty == &IdType::short() {
+        Ok(OBJ_OF_SCAL_SHORT.clone())
+    } else if scalar_ty == &IdType::char() {
+        Ok(OBJ_OF_SCAL_CHAR.clone())
+    } else if scalar_ty == &IdType::int() {
+        Ok(OBJ_OF_SCAL_INT.clone())
+    } else if scalar_ty == &IdType::long() {
+        Ok(OBJ_OF_SCAL_LONG.clone())
+    } else if scalar_ty == &IdType::float() {
+        Ok(OBJ_OF_SCAL_FLOAT.clone())
+    } else if scalar_ty == &IdType::double() {
+        Ok(OBJ_OF_SCAL_DOUBLE.clone())
+    } else {
+        bail!("{} is not a scalar", scalar_ty.__str__())
+    }
+}
+
 /// Get the method that convert a scalar to its object conterpart (eg `int` to `java.lang.Integer` with
 /// `Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;`)
 ///
@@ -1101,6 +1184,10 @@ fn get_args_from_obj_arr(
             });
             reg_count += 1;
         } else if param.is_double() || param.is_long() {
+            insns.push(Instruction::CheckCast {
+                reg: reg_inf.array_val,
+                lit: get_obj_of_scalar(param).unwrap(),
+            });
             insns.push(Instruction::InvokeVirtual {
                 method: get_obj_to_scalar_method(param).unwrap(),
                 args: vec![reg_inf.array_val as u16],
@@ -1114,6 +1201,10 @@ fn get_args_from_obj_arr(
             });
             reg_count += 2;
         } else {
+            insns.push(Instruction::CheckCast {
+                reg: reg_inf.array_val,
+                lit: get_obj_of_scalar(param).unwrap(),
+            });
             insns.push(Instruction::InvokeVirtual {
                 method: get_obj_to_scalar_method(param).unwrap(),
                 args: vec![reg_inf.array_val as u16],
