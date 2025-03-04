@@ -114,7 +114,8 @@ pub struct ReflectionInvokeData {
     pub caller_method: IdMethod,
     /// Address where the call to `java.lang.reflect.Method.invoke()` was made in `caller_method`.
     pub addr: usize,
-    // TODO: variable number of args?
+    /// If the method is static (static method don't take 'this' as argument)
+    pub is_static: bool,
     // TODO: type of invoke?
 }
 
@@ -924,14 +925,10 @@ fn get_invoke_block(
         (a, b, c)
     } else {
         bail!(
-            "Method;->invoke arg should have exactrly 3 arguments, found {}",
+            "Method;->invoke arg should have exactly 3 arguments, found {}",
             invoke_arg.len()
         );
     };
-    if arg_arr > u8::MAX as u16 {
-        // TODO
-        bail!("Cannot transform invoke calls to a method using 16 bits register for its argument");
-    }
     let nb_args: usize = ref_data
         .method
         .proto
@@ -939,14 +936,14 @@ fn get_invoke_block(
         .iter()
         .map(|ty| if ty.is_double() || ty.is_long() { 2 } else { 1 })
         .sum();
-    if reg_inf.nb_arg_reg < nb_args as u16 + 1 {
-        reg_inf.nb_arg_reg = nb_args as u16 + 1;
+    if reg_inf.nb_arg_reg < nb_args as u16 + if ref_data.is_static { 0 } else { 1 } {
+        reg_inf.nb_arg_reg = nb_args as u16 + if ref_data.is_static { 0 } else { 1 };
     }
 
     let abort_label = format!(
-        "end_static_call_to_{}_at_{}",
+        "end_static_call_to_{}_at_{:08X}",
         ref_data.method.try_to_smali()?,
-        "TODO_ADDR"
+        ref_data.addr
     );
     let mut insns = test_method(
         method_obj,
@@ -955,31 +952,40 @@ fn get_invoke_block(
         reg_inf,
     );
 
-    // Move 'this' to fist arg
-    // We do a small detour to `reg_inf.array_val` because we need a u8 reg to down cast the
-    // Object reference to the right Class
-    insns.push(Instruction::MoveObject {
-        from: obj_inst,
-        to: reg_inf.array_val as u16,
-    });
-    insns.push(Instruction::CheckCast {
-        reg: reg_inf.array_val,
-        lit: ref_data.method.class_.clone(),
-    });
-    insns.push(Instruction::MoveObject {
-        from: reg_inf.array_val as u16,
-        to: reg_inf.first_arg,
-    });
+    if !ref_data.is_static {
+        // Move 'this' to fist arg
+        // We do a small detour to `reg_inf.array_val` because we need a u8 reg to down cast the
+        // Object reference to the right Class
+        insns.push(Instruction::MoveObject {
+            from: obj_inst,
+            to: reg_inf.array_val as u16,
+        });
+        insns.push(Instruction::CheckCast {
+            reg: reg_inf.array_val,
+            lit: ref_data.method.class_.clone(),
+        });
+        insns.push(Instruction::MoveObject {
+            from: reg_inf.array_val as u16,
+            to: reg_inf.first_arg,
+        });
+    }
     insns.append(&mut get_args_from_obj_arr(
         &ref_data.method.proto.get_parameters(),
         arg_arr,
-        reg_inf.first_arg + 1,
+        reg_inf.first_arg + if ref_data.is_static { 0 } else { 1 },
         reg_inf,
     ));
-    insns.push(Instruction::InvokeVirtual {
-        method: ref_data.method.clone(),
-        args: (reg_inf.first_arg..reg_inf.first_arg + 1 + nb_args as u16).collect(),
-    });
+    if ref_data.is_static {
+        insns.push(Instruction::InvokeStatic {
+            method: ref_data.method.clone(),
+            args: (reg_inf.first_arg..reg_inf.first_arg + nb_args as u16).collect(),
+        });
+    } else {
+        insns.push(Instruction::InvokeVirtual {
+            method: ref_data.method.clone(),
+            args: (reg_inf.first_arg..reg_inf.first_arg + 1 + nb_args as u16).collect(),
+        });
+    }
     if let Some(move_result) = move_result {
         let ret_ty = ref_data.method.proto.get_return_type();
         let res_reg = if let Instruction::MoveResultObject { to } = &move_result {
