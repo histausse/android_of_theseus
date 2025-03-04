@@ -657,13 +657,7 @@ pub fn labeling(_mth: &IdMethod, ins: &Instruction, addr: usize) -> Option<Strin
         {
             Some(format!("THESEUS_ADDR_{addr:08X}"))
         }
-        _ => {
-            if addr == 0 {
-                Some(format!("DEBUG_{addr:08X}"))
-            } else {
-                None
-            }
-        }
+        _ => None,
     }
 }
 
@@ -869,6 +863,7 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
             }
         }
     }
+    let ins_size = code.ins_size(meth);
     let code = meth
         .code
         .as_mut()
@@ -880,37 +875,37 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
     if !meth.is_static {
         // Non static method take 'this' as first argument
         code.insns.push(Instruction::MoveObject {
-            from: code.registers_size - code.ins_size + i + register_info.get_nb_added_reg(),
-            to: code.registers_size - code.ins_size + i,
+            from: code.registers_size - ins_size + i + register_info.get_nb_added_reg(),
+            to: code.registers_size - ins_size + i,
         });
         i += 1;
     }
     for arg in &meth.descriptor.proto.get_parameters() {
         if arg.is_class() || arg.is_array() {
             code.insns.push(Instruction::MoveObject {
-                from: code.registers_size - code.ins_size + i + register_info.get_nb_added_reg(),
-                to: code.registers_size - code.ins_size + i,
+                from: code.registers_size - ins_size + i + register_info.get_nb_added_reg(),
+                to: code.registers_size - ins_size + i,
             });
             i += 1;
         } else if arg.is_long() || arg.is_double() {
             code.insns.push(Instruction::MoveWide {
-                from: code.registers_size - code.ins_size + i + register_info.get_nb_added_reg(),
-                to: code.registers_size - code.ins_size + i,
+                from: code.registers_size - ins_size + i + register_info.get_nb_added_reg(),
+                to: code.registers_size - ins_size + i,
             });
             i += 2;
         } else {
             code.insns.push(Instruction::Move {
-                from: code.registers_size - code.ins_size + i + register_info.get_nb_added_reg(),
-                to: code.registers_size - code.ins_size + i,
+                from: code.registers_size - ins_size + i + register_info.get_nb_added_reg(),
+                to: code.registers_size - ins_size + i,
             });
             i += 1;
         }
     }
-    if i != code.ins_size {
+    if i != ins_size {
         warn!(
             "Method {} argument do not match code ins_size ({})",
             meth.descriptor.__str__(),
-            code.ins_size
+            ins_size
         );
     }
     // Add the new code
