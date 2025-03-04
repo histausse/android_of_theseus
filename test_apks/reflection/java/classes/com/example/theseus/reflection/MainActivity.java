@@ -4,6 +4,12 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 
+import android.widget.RelativeLayout;
+import android.widget.LinearLayout;
+import android.view.ViewGroup;
+import android.view.View;
+import android.widget.Button;
+
 import java.lang.ClassLoader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -17,18 +23,130 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        try {
-            callVirtualMethod();
-            callVirtualMethodReflectCall();
-            callConstructorVirtualMethodReflectConstr();
-            callVirtualMethodReflectOldConst();
-            callVirtualMethodCallAllScalar();
-            callVirtualMethodReflectCallAllScalar();
-            callVirtualMethodCallVarArg();
-            callVirtualMethodReflectVarArg();
-        } catch(Exception e) {
-            Log.e("THESEUS", "Error: ", e);
-        }
+
+        RelativeLayout relLayout = new RelativeLayout(this);
+        relLayout.generateViewId();
+
+        RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, 
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        lp.addRule(RelativeLayout.CENTER_IN_PARENT);
+
+        LinearLayout linLayout = new LinearLayout(this);
+        linLayout.generateViewId();
+        linLayout.setLayoutParams(lp);
+        linLayout.setOrientation(LinearLayout.VERTICAL);
+
+
+        Button b1 = new Button(this);
+        b1.generateViewId();
+        linLayout.addView(b1);
+
+        Button b2 = new Button(this);
+        b2.generateViewId();
+        linLayout.addView(b2);
+
+        Button b3 = new Button(this);
+        b3.generateViewId();
+        linLayout.addView(b3);
+
+        Button b4 = new Button(this);
+        b4.generateViewId();
+        linLayout.addView(b4);
+
+        Button b5 = new Button(this);
+        b5.generateViewId();
+        linLayout.addView(b5);
+
+        Button b6 = new Button(this);
+        b6.generateViewId();
+        linLayout.addView(b6);
+
+        Button b7 = new Button(this);
+        b7.generateViewId();
+        linLayout.addView(b7);
+
+        relLayout.addView(linLayout);
+        setContentView(relLayout);
+
+        b1.setText("Virtual control");
+        b1.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callVirtualMethod();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b2.setText("Virtual rflct");
+        b2.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callVirtualMethodReflectCall();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b3.setText("Instanciation rflct");
+        b3.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callConstructorVirtualMethodReflectConstr();
+                    callVirtualMethodReflectOldConst();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b4.setText("Virtual with scalar control");
+        b4.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callVirtualMethodCallAllScalar();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b5.setText("Virtual with scalar rflct");
+        b5.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callVirtualMethodReflectCallAllScalar();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b6.setText("Virtual with variable args number control");
+        b6.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callVirtualMethodCallVarArg();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b7.setText("Virtual with variable args number rflct");
+        b7.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callVirtualMethodReflectVarArg();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
     }
 
     // A normal virtual method call
