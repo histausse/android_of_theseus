@@ -890,7 +890,6 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
 }
 
 /// Return the MoveResult{,Wide,Object} associated to the last instruction of the iterator.
-/// TODO: return the list of pseudo instruction between the last instruction and the move result.
 fn get_move_result<'a>(
     iter: impl Iterator<Item = &'a Instruction>,
 ) -> (Vec<Instruction>, Option<Instruction>) {
