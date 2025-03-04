@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 /// Inject arbitrary text in the instructions array as 'source file' debug info.
 /// It's cursed, but it work XD
-fn debug_info(data: &str) -> Vec<Instruction> {
+fn _debug_info(data: &str) -> Vec<Instruction> {
     data.split("\n")
         .map(|data| Instruction::DebugSourceFile {
             file: Some(format!("  {data: <70}").into()),
@@ -749,32 +749,10 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
                         }
                         match register_info.tmp_reserve_reg(&used_reg, regs_type) {
                             Ok((mut save_insns, restore_insns)) => {
-                                new_insns
-                                    .append(&mut debug_info(&format!("Reg saved:\n{regs_type:?}")));
-                                new_insns.append(&mut debug_info(&format!(
-                                    "Reg saved:\n{register_info:#?}"
-                                )));
-                                new_insns.append(&mut debug_info(&format!(
-                                    "save reg insns:\n{}",
-                                    save_insns
-                                        .iter()
-                                        .map(|i| "  # ".to_string() + i.__str__().as_str())
-                                        .collect::<Vec<_>>()
-                                        .join("\n")
-                                )));
-                                new_insns.append(&mut debug_info(&format!(
-                                    "restore reg insns:\n{}",
-                                    restore_insns
-                                        .iter()
-                                        .map(|i| "  # ".to_string() + i.__str__().as_str())
-                                        .collect::<Vec<_>>()
-                                        .join("\n")
-                                )));
                                 restore_reg = restore_insns;
                                 new_insns.append(&mut save_insns);
                             }
                             Err(err) => {
-                                new_insns.append(&mut debug_info(&format!("WTF?: {err}")));
                                 warn!(
                                     "Failed to instrument reflection in {} at {}: {}",
                                     method.__str__(),
@@ -793,11 +771,6 @@ pub fn transform_method(meth: &mut Method, ref_data: &ReflectionData) -> Result<
                             }
                         }
                     }
-                } else {
-                    new_insns.append(&mut debug_info(&format!(
-                        "regs_type is none: {regs_type:#?}"
-                    )));
-                    new_insns.append(&mut debug_info(&format!("Reg used:\n{register_info:#?}")));
                 }
                 // TODO: recover from failure
                 if method == &*MTH_INVOKE {
@@ -1239,7 +1212,6 @@ fn test_method(
     ];
     // First check  the number of args
     // TODO: remove, test
-    insns.append(&mut debug_info(&format!("{:#?}", reg_inf)));
     // --------------------
     insns.append(&mut vec![
         Instruction::ArrayLength {
