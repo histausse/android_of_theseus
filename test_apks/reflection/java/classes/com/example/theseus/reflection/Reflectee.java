@@ -40,4 +40,10 @@ public class Reflectee {
         }
         return val;
     }
+
+    public static String staticTransfer(
+        String data
+    ) {
+        return "Static Transfer: " + data;
+    }
 }

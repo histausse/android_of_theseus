@@ -67,6 +67,14 @@ public class MainActivity extends Activity {
         b7.generateViewId();
         linLayout.addView(b7);
 
+        Button b8 = new Button(this);
+        b8.generateViewId();
+        linLayout.addView(b8);
+
+        Button b9 = new Button(this);
+        b9.generateViewId();
+        linLayout.addView(b9);
+
         relLayout.addView(linLayout);
         setContentView(relLayout);
 
@@ -142,6 +150,28 @@ public class MainActivity extends Activity {
             public void onClick(View v) {
                 try {
                     callVirtualMethodReflectVarArg();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b8.setText("Static control");
+        b8.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callStaticMethod();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b9.setText("Static rflct");
+        b9.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callStaticMethodReflectCall();
                 } catch(Exception e) {
                     Log.e("THESEUS", "Error: ", e);
                 }
@@ -267,7 +297,29 @@ public class MainActivity extends Activity {
         Utils.sink(this, newData);
     }
 
+    // A normal virtual method call
+    public void callStaticMethod() {
+        String data = Utils.source("R7 no reflect");
+        String newData = Reflectee.staticTransfer(data);
+        Utils.sink(this, newData);
+    }
+
+    // A call to a virtual method through reflection
+    public void callStaticMethodReflectCall() throws
+        ClassNotFoundException,
+        NoSuchMethodException,
+        IllegalAccessException,
+        InvocationTargetException
+    {
+        String data = Utils.source("R8 reflect");
+        ClassLoader cl = MainActivity.class.getClassLoader();
+        Class clz = cl.loadClass("com.example.theseus.reflection.Reflectee");
+        Method mth = clz.getMethod("staticTransfer", String.class);
+        String newData = (String) mth.invoke(null, data);
+        Utils.sink(this, newData);
+    }
+
+    // TODO: Interface, Inheritance
     // TODO: many argument methods
-    // TODO: static
-    // TODO: factory patern 
+    // TODO: factory patern
 }
