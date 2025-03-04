@@ -67,6 +67,7 @@ Java.perform(() => {
   const Method = Java.use("java.lang.reflect.Method");
   const Class = Java.use("java.lang.Class");
   const Constructor = Java.use("java.lang.reflect.Constructor");
+  const Modifier = Java.use("java.lang.reflect.Modifier");
   Method.invoke.overload(
     "java.lang.Object", "[Ljava.lang.Object;" // the Frida type parser is so cursted...
   ).implementation = function (obj, args) {
@@ -80,7 +81,8 @@ Java.perform(() => {
             "args": this.getParameterTypes().map((argty) => argty.getName() ),
             "ret": this.getReturnType().getName(),
           },*/
-	  "stack": get_stack()
+	  "stack": get_stack(),
+	  "is_static": Modifier.isStatic(this.getModifiers()),
       }
     });
     return this.invoke(obj, args);

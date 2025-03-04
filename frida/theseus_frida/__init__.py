@@ -7,6 +7,9 @@ from pathlib import Path
 
 import frida  # type: ignore
 from androguard.core.apk import get_apkid  # type: ignore
+from loguru import logger  # type: ignore
+
+logger.remove()  # remove androguard logs
 
 FRIDA_SCRIPT = Path(__file__).parent / "hook.js"
 STACK_CONSUMER_B64 = Path(__file__).parent / "StackConsumer.dex.b64"
@@ -35,32 +38,25 @@ def print_stack(stack, prefix: str):
         print(f"{prefix}{frame['method']}:{frame['bytecode_index']}{native}")
 
 
-# def get_ty(java_name: str) -> str:
-#    """Return the android name from the java name of a class / type"""
-#    # TODO: array
-#    # TODO: scalar
-#    if java_name == "V":  # tmp stub
-#        return "V"
-#    return f"L{java_name.replace('.', '/')};"
-
-
-# def get_method_id(method_data) -> str:
-#    """Get a method descriptor from the different elements collected from the methods."""
-#    name = method_data["name"]
-#    ret = get_ty(method_data["ret"])
-#    cls = get_ty(method_data["class"])
-#    args = "".join(map(get_ty, method_data["args"]))
-#    return f"{cls}->{name}({args}){ret}"
-
-
 def handle_invoke_data(data, data_storage: dict):
     method = data["method"]
+    # TODO: good idea?
+    if method in [
+        "Landroid/view/View;->getTranslationZ()F",
+        "Landroid/view/View;->getElevation()F",
+    ]:
+        return
     if len(data["stack"]) == 0:
         return
     caller_method = data["stack"][0]["method"]
     addr = data["stack"][0]["bytecode_index"]
+    is_static = data["is_static"]
+    if is_static:
+        is_static_str = " (static)"
+    else:
+        is_static_str = ""
     print("Method.Invoke:")
-    print(f"    called: {method}")
+    print(f"    called: {method}{is_static_str}")
     print(f"    by:     {caller_method}")
     print(f"    at:     0x{addr:08x}")
     # print(f"    stack:")
@@ -72,6 +68,7 @@ def handle_invoke_data(data, data_storage: dict):
             "method": method,
             "caller_method": caller_method,
             "addr": addr,
+            "is_static": is_static,
         }
     )
 

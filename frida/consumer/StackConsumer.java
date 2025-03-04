@@ -9,7 +9,7 @@ class StackConsumer implements Consumer<StackFrame> {
     public ArrayList<StackFrame> stack;
 
     public StackConsumer() {
-        this.stack = new ArrayList();
+        this.stack = new ArrayList<StackFrame>();
     }
 
     @Override
