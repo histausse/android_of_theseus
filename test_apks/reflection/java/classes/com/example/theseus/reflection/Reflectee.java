@@ -46,4 +46,20 @@ public class Reflectee {
     ) {
         return "Static Transfer: " + data;
     }
+
+    public static String staticInheritedTransfer(String data) {
+        return "Static Inherited Transfer Reflectee: " + data;
+    }
+
+    public static String staticOverridenTransfer(String data) {
+        return "Static Inherited Transfer Reflectee: " + data;
+    }
+
+    public String inheritedTransfer(String data) {
+        return "Inherited Transfer Reflectee: " + data;
+    }
+
+    public String overridenTransfer(String data) {
+        return "Inherited Transfer Reflectee: " + data;
+    }
 }

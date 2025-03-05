@@ -13,12 +13,39 @@ import java.util.Arrays;
 
 import android.util.Log;
 
+import java.util.Random;
+
 import com.example.theseus.Utils;
 
 public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        boolean t = (new Random().nextInt(1000)) < 500;
+        if (t) {
+            Log.i("THESEUS", "OK");
+        } else { 
+            Log.i("THESEUS", "NOP");
+        }
+        boolean t0 = (new Random().nextInt(1000)) < 500;
+        boolean t1 = (new Random().nextInt(1000)) < 500;
+        boolean t2 = (new Random().nextInt(1000)) < 500;
+        boolean t3 = (new Random().nextInt(1000)) < 500;
+        boolean t4 = (new Random().nextInt(1000)) < 500;
+        boolean t5 = (new Random().nextInt(1000)) < 500;
+        boolean t6 = (new Random().nextInt(1000)) < 500;
+        boolean t7 = (new Random().nextInt(1000)) < 500;
+        boolean t8 = (new Random().nextInt(1000)) < 500;
+        boolean t9 = (new Random().nextInt(1000)) < 500;
+        boolean t10 = (new Random().nextInt(1000)) < 500;
+        boolean t11 = (new Random().nextInt(1000)) < 500;
+        boolean t12 = (new Random().nextInt(1000)) < 500;
+        boolean t13 = (new Random().nextInt(1000)) < 500;
+        boolean t14 = (new Random().nextInt(1000)) < 500;
+        boolean t15 = (new Random().nextInt(1000)) < 500;
+        Log.i("THESEUS", "" + t0+t1+t2+t3+t4+t5+t6+t7+t8+t9+t10+t11+t12+t13+t14+t15);
+
         super.onCreate(savedInstanceState);
         try {
             //callVirtualMethod();

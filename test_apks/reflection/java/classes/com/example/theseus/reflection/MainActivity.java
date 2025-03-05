@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.util.Log;
 
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.LinearLayout;
 import android.view.ViewGroup;
 import android.view.View;
@@ -26,6 +27,9 @@ public class MainActivity extends Activity {
 
         RelativeLayout relLayout = new RelativeLayout(this);
         relLayout.generateViewId();
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.generateViewId();
 
         RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, 
@@ -75,7 +79,16 @@ public class MainActivity extends Activity {
         b9.generateViewId();
         linLayout.addView(b9);
 
-        relLayout.addView(linLayout);
+        Button b10 = new Button(this);
+        b10.generateViewId();
+        linLayout.addView(b10);
+
+        Button b11 = new Button(this);
+        b11.generateViewId();
+        linLayout.addView(b11);
+
+        scrollView.addView(linLayout);
+        relLayout.addView(scrollView);
         setContentView(relLayout);
 
         b1.setText("Virtual control");
@@ -177,12 +190,40 @@ public class MainActivity extends Activity {
                 }
             }
         });
+
+        b10.setText("Extends control");
+        b10.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callVirtualInherited();
+                    callVirtualOverriden();
+                    callStaticInherited();
+                    callStaticOverriden();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b11.setText("Extends rflct");
+        b11.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    callVirtualInheritedReflect();
+                    callVirtualOverridenReflect();
+                    callStaticInheritedReflect();
+                    callStaticOverridenReflect();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
     }
 
     // A normal virtual method call
     public void callVirtualMethod() {
         String data = Utils.source("no reflect virt call");
-        Reflectee r = new Reflectee("R1");
+        Reflectee r = new Reflectee("T1");
         String newData = r.transfer(data);
         Utils.sink(this, newData);
     }
@@ -195,7 +236,7 @@ public class MainActivity extends Activity {
         InvocationTargetException
     {
         String data = Utils.source("reflect virt call");
-        Reflectee r = new Reflectee("R2");
+        Reflectee r = new Reflectee("R1");
         ClassLoader cl = MainActivity.class.getClassLoader();
         Class clz = cl.loadClass("com.example.theseus.reflection.Reflectee");
         Method mth = clz.getMethod("transfer", String.class);
@@ -208,7 +249,7 @@ public class MainActivity extends Activity {
     public void callVirtualMethodCallAllScalar()
     {
         String data = Utils.source("no reflect virt call all scalars");
-        Reflectee r = new Reflectee("R3");
+        Reflectee r = new Reflectee("T2");
         String newData = r.transfer(true, (byte)42, (short)666, '*', 0xDEAD_BEEF, 0xD1AB011C_5EAF00DL, 0.99f, 3.1415926535897932384626433d, data);
         Utils.testIsReflectee(this, r);
         Utils.sink(this, newData);
@@ -222,7 +263,7 @@ public class MainActivity extends Activity {
         InvocationTargetException
     {
         String data = Utils.source("reflect virt call all scalars");
-        Reflectee r = new Reflectee("R4");
+        Reflectee r = new Reflectee("R2");
         ClassLoader cl = MainActivity.class.getClassLoader();
         Class clz = cl.loadClass("com.example.theseus.reflection.Reflectee");
         Method mth = clz.getMethod("transfer", boolean.class, byte.class, short.class, char.class, int.class, long.class, float.class, double.class, String.class);
@@ -235,7 +276,7 @@ public class MainActivity extends Activity {
     public void callVirtualMethodCallVarArg()
     {
         String data = Utils.source("no reflect virt call variable arg numb");
-        Reflectee r = new Reflectee("R5");
+        Reflectee r = new Reflectee("T3");
         String newData = r.transfer("aa", "bb", data, "cc");
         Utils.testIsReflectee(this, r);
         Utils.sink(this, newData);
@@ -249,7 +290,7 @@ public class MainActivity extends Activity {
         InvocationTargetException
     {
         String data = Utils.source("reflect virt call variable arg numb");
-        Reflectee r = new Reflectee("R6");
+        Reflectee r = new Reflectee("R3");
         ClassLoader cl = MainActivity.class.getClassLoader();
         Class clz = cl.loadClass("com.example.theseus.reflection.Reflectee");
         Method mth = clz.getMethod("transfer", String.class, String[].class);
@@ -299,7 +340,7 @@ public class MainActivity extends Activity {
 
     // A normal virtual method call
     public void callStaticMethod() {
-        String data = Utils.source("R7 no reflect");
+        String data = Utils.source("T4 control static");
         String newData = Reflectee.staticTransfer(data);
         Utils.sink(this, newData);
     }
@@ -311,7 +352,7 @@ public class MainActivity extends Activity {
         IllegalAccessException,
         InvocationTargetException
     {
-        String data = Utils.source("R8 reflect");
+        String data = Utils.source("R4 reflect static");
         ClassLoader cl = MainActivity.class.getClassLoader();
         Class clz = cl.loadClass("com.example.theseus.reflection.Reflectee");
         Method mth = clz.getMethod("staticTransfer", String.class);
@@ -319,7 +360,87 @@ public class MainActivity extends Activity {
         Utils.sink(this, newData);
     }
 
-    // TODO: Interface, Inheritance
+    public void callVirtualInherited() {
+        String data = Utils.source("T5 control extend virt");
+        String newData = new ChildReflectee().inheritedTransfer(data);
+        Utils.sink(this, newData);
+    }
+    public void callVirtualOverriden() {
+        String data = Utils.source("T6 control extend virt override");
+        String newData = new ChildReflectee().overridenTransfer(data);
+        Utils.sink(this, newData);
+    }
+    public void callStaticInherited() {
+        String data = Utils.source("T7 control extend static");
+        String newData = ChildReflectee.staticInheritedTransfer(data);
+        Utils.sink(this, newData);
+    }
+    public void callStaticOverriden()  {
+        String data = Utils.source("T8 control extend static override");
+        String newData = ChildReflectee.staticOverridenTransfer(data);
+        Utils.sink(this, newData);
+    }
+
+    public void callVirtualInheritedReflect() throws
+        ClassNotFoundException,
+        NoSuchMethodException,
+        IllegalAccessException,
+        InvocationTargetException
+    {
+        String data = Utils.source("R5 reflect extend virt");
+        ChildReflectee obj = new ChildReflectee();
+        ClassLoader cl = MainActivity.class.getClassLoader();
+        Class clz = cl.loadClass("com.example.theseus.reflection.ChildReflectee");
+        Method mth = clz.getMethod("inheritedTransfer", String.class);
+        String newData = (String) mth.invoke(obj, data);
+        Utils.testIsChildReflectee(this, obj);
+        Utils.sink(this, newData);
+    }
+
+    public void callVirtualOverridenReflect() throws
+        ClassNotFoundException,
+        NoSuchMethodException,
+        IllegalAccessException,
+        InvocationTargetException
+    {
+        String data = Utils.source("R6 reflect extend virt override");
+        ChildReflectee obj = new ChildReflectee();
+        ClassLoader cl = MainActivity.class.getClassLoader();
+        Class clz = cl.loadClass("com.example.theseus.reflection.ChildReflectee");
+        Method mth = clz.getMethod("overridenTransfer", String.class);
+        String newData = (String) mth.invoke(obj, data);
+        Utils.testIsChildReflectee(this, obj);
+        Utils.sink(this, newData);
+    }
+
+    public void callStaticInheritedReflect() throws
+        ClassNotFoundException,
+        NoSuchMethodException,
+        IllegalAccessException,
+        InvocationTargetException
+    {
+        String data = Utils.source("R7 reflect extend static");
+        ClassLoader cl = MainActivity.class.getClassLoader();
+        Class clz = cl.loadClass("com.example.theseus.reflection.ChildReflectee");
+        Method mth = clz.getMethod("staticInheritedTransfer", String.class);
+        String newData = (String) mth.invoke(null, data);
+        Utils.sink(this, newData);
+    }
+    public void callStaticOverridenReflect() throws
+        ClassNotFoundException,
+        NoSuchMethodException,
+        IllegalAccessException,
+        InvocationTargetException
+    {
+        String data = Utils.source("R8 reflect extend static override");
+        ClassLoader cl = MainActivity.class.getClassLoader();
+        Class clz = cl.loadClass("com.example.theseus.reflection.ChildReflectee");
+        Method mth = clz.getMethod("staticOverridenTransfer", String.class);
+        String newData = (String) mth.invoke(null, data);
+        Utils.sink(this, newData);
+    }
+
+    // TODO: Interface
     // TODO: many argument methods
     // TODO: factory patern
 }
