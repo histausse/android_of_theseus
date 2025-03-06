@@ -10,6 +10,7 @@ import android.widget.LinearLayout;
 import android.view.ViewGroup;
 import android.view.View;
 import android.widget.Button;
+import android.content.res.ColorStateList;
 
 import java.lang.ClassLoader;
 import java.lang.reflect.InvocationTargetException;
@@ -24,6 +25,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ColorStateList buttonColor = ColorStateList.valueOf(0xff808080);
 
         RelativeLayout relLayout = new RelativeLayout(this);
         relLayout.generateViewId();
@@ -87,6 +89,22 @@ public class MainActivity extends Activity {
         b11.generateViewId();
         linLayout.addView(b11);
 
+        Button b12 = new Button(this);
+        b12.generateViewId();
+        linLayout.addView(b12);
+
+        Button b13 = new Button(this);
+        b13.generateViewId();
+        linLayout.addView(b13);
+
+        Button b14 = new Button(this);
+        b14.generateViewId();
+        linLayout.addView(b14);
+
+        Button b15 = new Button(this);
+        b15.generateViewId();
+        linLayout.addView(b15);
+
         scrollView.addView(linLayout);
         relLayout.addView(scrollView);
         setContentView(relLayout);
@@ -94,6 +112,7 @@ public class MainActivity extends Activity {
         b1.setText("Virtual control");
         b1.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callVirtualMethod();
                 } catch(Exception e) {
@@ -105,6 +124,7 @@ public class MainActivity extends Activity {
         b2.setText("Virtual rflct");
         b2.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callVirtualMethodReflectCall();
                 } catch(Exception e) {
@@ -116,6 +136,7 @@ public class MainActivity extends Activity {
         b3.setText("Instanciation rflct");
         b3.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callConstructorVirtualMethodReflectConstr();
                     callVirtualMethodReflectOldConst();
@@ -128,6 +149,7 @@ public class MainActivity extends Activity {
         b4.setText("Virtual with scalar control");
         b4.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callVirtualMethodCallAllScalar();
                 } catch(Exception e) {
@@ -139,6 +161,7 @@ public class MainActivity extends Activity {
         b5.setText("Virtual with scalar rflct");
         b5.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callVirtualMethodReflectCallAllScalar();
                 } catch(Exception e) {
@@ -150,6 +173,7 @@ public class MainActivity extends Activity {
         b6.setText("Virtual with variable args number control");
         b6.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callVirtualMethodCallVarArg();
                 } catch(Exception e) {
@@ -161,6 +185,7 @@ public class MainActivity extends Activity {
         b7.setText("Virtual with variable args number rflct");
         b7.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callVirtualMethodReflectVarArg();
                 } catch(Exception e) {
@@ -172,6 +197,7 @@ public class MainActivity extends Activity {
         b8.setText("Static control");
         b8.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callStaticMethod();
                 } catch(Exception e) {
@@ -183,6 +209,7 @@ public class MainActivity extends Activity {
         b9.setText("Static rflct");
         b9.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callStaticMethodReflectCall();
                 } catch(Exception e) {
@@ -194,6 +221,7 @@ public class MainActivity extends Activity {
         b10.setText("Extends control");
         b10.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callVirtualInherited();
                     callVirtualOverriden();
@@ -208,11 +236,40 @@ public class MainActivity extends Activity {
         b11.setText("Extends rflct");
         b11.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
                 try {
                     callVirtualInheritedReflect();
                     callVirtualOverridenReflect();
                     callStaticInheritedReflect();
                     callStaticOverridenReflect();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b12.setText("Interface control");
+        b12.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
+                try {
+                    callVirtualInheritedInterface();
+                    callVirtualOverridenInterface();
+                    callStaticInheritedInterface();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b13.setText("Interface rflct");
+        b13.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
+                try {
+                    //callVirtualInheritedInterfaceReflect();
+                    //callVirtualOverridenInterfaceReflect();
+                    callStaticInheritedInterfaceReflect();
                 } catch(Exception e) {
                     Log.e("THESEUS", "Error: ", e);
                 }
@@ -440,7 +497,66 @@ public class MainActivity extends Activity {
         Utils.sink(this, newData);
     }
 
-    // TODO: Interface
+    public void callVirtualInheritedInterface() {
+        String data = Utils.source("T9 control virtual interface default");
+        String newData = new ChildReflectee().defaultInterfaceTransfer(data);
+        Utils.sink(this, newData);
+    }
+    public void callVirtualOverridenInterface() {
+        String data = Utils.source("T10 control virtual interface overriden");
+        String newData = new ChildReflectee().overridenInterfaceTransfer(data);
+        Utils.sink(this, newData);
+    }
+    public void callStaticInheritedInterface() {
+        String data = Utils.source("T11 control static interface");
+        String newData = IReflectee.staticDefaultInterfaceTransfer(data);
+        Utils.sink(this, newData);
+    }
+    public void callVirtualInheritedInterfaceReflect() throws 
+        ClassNotFoundException,
+        NoSuchMethodException,
+        IllegalAccessException,
+        InvocationTargetException
+    {
+        String data = Utils.source("R9 reflect virtual interface default");
+        ChildReflectee obj = new ChildReflectee();
+        ClassLoader cl = MainActivity.class.getClassLoader();
+        Class clz = cl.loadClass("com.example.theseus.reflection.ChildReflectee");
+        Method mth = clz.getMethod("defaultInterfaceTransfer", String.class);
+        String newData = (String) mth.invoke(obj, data);
+        Utils.testIsChildReflectee(this, obj);
+        Utils.sink(this, newData);
+    }
+    public void callVirtualOverridenInterfaceReflect() throws 
+        ClassNotFoundException,
+        NoSuchMethodException,
+        IllegalAccessException,
+        InvocationTargetException
+    {
+        String data = Utils.source("R10 reflect virtual interface overriden");
+        ChildReflectee obj = new ChildReflectee();
+        ClassLoader cl = MainActivity.class.getClassLoader();
+        Class clz = cl.loadClass("com.example.theseus.reflection.ChildReflectee");
+        Method mth = clz.getMethod("overridenInterfaceTransfer", String.class);
+        String newData = (String) mth.invoke(obj, data);
+        Utils.testIsChildReflectee(this, obj);
+        Utils.sink(this, newData);
+    }
+    public void callStaticInheritedInterfaceReflect() throws 
+        ClassNotFoundException,
+        NoSuchMethodException,
+        IllegalAccessException,
+        InvocationTargetException
+    {
+        String data = Utils.source("R11 reflect static interface");
+        ClassLoader cl = MainActivity.class.getClassLoader();
+        Class clz = cl.loadClass("com.example.theseus.reflection.IReflectee");
+        //Method mth = clz.getDeclaredMethod("staticDefaultInterfaceTransfer", String.class);
+        Method mth = clz.getMethod("staticDefaultInterfaceTransfer", String.class);
+        String newData = (String) mth.invoke(null, data);
+        Utils.sink(this, newData);
+    }
+
     // TODO: many argument methods
     // TODO: factory patern
 }
