@@ -20,6 +20,9 @@ import java.lang.ClassNotFoundException;
 
 import com.example.theseus.Utils;
 
+
+import java.util.Arrays;
+
 public class MainActivity extends Activity {
 
     @Override
@@ -267,9 +270,34 @@ public class MainActivity extends Activity {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
                 try {
-                    //callVirtualInheritedInterfaceReflect();
-                    //callVirtualOverridenInterfaceReflect();
+                    callVirtualInheritedInterfaceReflect();
+                    callVirtualOverridenInterfaceReflect();
                     callStaticInheritedInterfaceReflect();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b14.setText("Interface Factory control");
+        b14.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
+                try {
+                    callVirtualInheritedInterfaceFactory();
+                    callVirtualOverridenInterfaceFactory();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+        b15.setText("Interface Factory rflct");
+        b15.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
+                try {
+                    callVirtualInheritedInterfaceFactoryReflect();
+                    callVirtualOverridenInterfaceFactoryReflect();
                 } catch(Exception e) {
                     Log.e("THESEUS", "Error: ", e);
                 }
@@ -542,21 +570,70 @@ public class MainActivity extends Activity {
         Utils.testIsChildReflectee(this, obj);
         Utils.sink(this, newData);
     }
+
+    /* Android is broken (what a surprise...), cannot get the Method representation 
+     * of a static method implemented in an Interface.
+     */
     public void callStaticInheritedInterfaceReflect() throws 
         ClassNotFoundException,
         NoSuchMethodException,
         IllegalAccessException,
         InvocationTargetException
     {
+        Utils.popup(this, "DEBUG", "R11 not implemented due to Android beeing Android");
+        /*
         String data = Utils.source("R11 reflect static interface");
         ClassLoader cl = MainActivity.class.getClassLoader();
         Class clz = cl.loadClass("com.example.theseus.reflection.IReflectee");
+        Utils.popup(this, "DEBUG", Arrays.deepToString(clz.getDeclaredMethods()));
+        Utils.popup(this, "DEBUG", ""+clz.getMethods().length);
         //Method mth = clz.getDeclaredMethod("staticDefaultInterfaceTransfer", String.class);
         Method mth = clz.getMethod("staticDefaultInterfaceTransfer", String.class);
         String newData = (String) mth.invoke(null, data);
         Utils.sink(this, newData);
+        */
+    }
+
+    public void callVirtualInheritedInterfaceFactory() {
+        String data = Utils.source("T12 control virtual interface default factory");
+        IReflectee obj = (IReflectee) (new ChildReflectee());
+        String newData = obj.defaultInterfaceTransfer(data);
+        Utils.sink(this, newData);
+    }
+    public void callVirtualOverridenInterfaceFactory() {
+        String data = Utils.source("T13 control virtual interface overriden factory");
+        IReflectee obj = (IReflectee) (new ChildReflectee());
+        String newData = obj.overridenInterfaceTransfer(data);
+        Utils.sink(this, newData);
+    }
+    public void callVirtualInheritedInterfaceFactoryReflect() throws 
+        ClassNotFoundException,
+        NoSuchMethodException,
+        IllegalAccessException,
+        InvocationTargetException,
+        InstantiationException
+    {
+        String data = Utils.source("R12 reflect virtual interface default factory");
+        IReflectee obj = (IReflectee) ChildReflectee.class.getDeclaredConstructor().newInstance();
+        String newData = obj.defaultInterfaceTransfer(data);
+        Utils.sink(this, newData);
+    }
+    public void callVirtualOverridenInterfaceFactoryReflect() throws 
+        ClassNotFoundException,
+        NoSuchMethodException,
+        IllegalAccessException,
+        InvocationTargetException,
+        InstantiationException
+    {
+        String data = Utils.source("R13 reflect virtual interface overriden factory");
+        IReflectee obj = (IReflectee) ChildReflectee.class.getDeclaredConstructor().newInstance();
+        String newData = obj.overridenInterfaceTransfer(data);
+        Utils.sink(this, newData);
     }
 
     // TODO: many argument methods
-    // TODO: factory patern
+    // TODO: call from static method
+    // TODO: call different methods with the same invoke
+    // TODO: several invoke in same method
 }
+
