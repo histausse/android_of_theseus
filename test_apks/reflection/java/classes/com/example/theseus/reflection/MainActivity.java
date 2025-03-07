@@ -571,27 +571,18 @@ public class MainActivity extends Activity {
         Utils.sink(this, newData);
     }
 
-    /* Android is broken (what a surprise...), cannot get the Method representation 
-     * of a static method implemented in an Interface.
-     */
     public void callStaticInheritedInterfaceReflect() throws 
         ClassNotFoundException,
         NoSuchMethodException,
         IllegalAccessException,
         InvocationTargetException
     {
-        Utils.popup(this, "DEBUG", "R11 not implemented due to Android beeing Android");
-        /*
         String data = Utils.source("R11 reflect static interface");
         ClassLoader cl = MainActivity.class.getClassLoader();
-        Class clz = cl.loadClass("com.example.theseus.reflection.IReflectee");
-        Utils.popup(this, "DEBUG", Arrays.deepToString(clz.getDeclaredMethods()));
-        Utils.popup(this, "DEBUG", ""+clz.getMethods().length);
-        //Method mth = clz.getDeclaredMethod("staticDefaultInterfaceTransfer", String.class);
-        Method mth = clz.getMethod("staticDefaultInterfaceTransfer", String.class);
+        Class clz = cl.loadClass("com.example.theseus.reflection.IReflectee$-CC"); // <- lol, thanks android <https://r8.googlesource.com/r8/+/refs/heads/main/src/main/java/com/android/tools/r8/ir/desugar/itf/InterfaceMethodRewriter.java>
+        Method mth = clz.getDeclaredMethod("staticDefaultInterfaceTransfer", String.class);
         String newData = (String) mth.invoke(null, data);
         Utils.sink(this, newData);
-        */
     }
 
     public void callVirtualInheritedInterfaceFactory() {
@@ -636,4 +627,3 @@ public class MainActivity extends Activity {
     // TODO: call different methods with the same invoke
     // TODO: several invoke in same method
 }
-
