@@ -68,6 +68,17 @@ Java.perform(() => {
   const Class = Java.use("java.lang.Class");
   const Constructor = Java.use("java.lang.reflect.Constructor");
   const Modifier = Java.use("java.lang.reflect.Modifier");
+  const DexFile = Java.use("dalvik.system.DexFile");
+
+  const File = Java.use('java.io.File');
+  const Files = Java.use('java.nio.file.Files');
+  const Path = Java.use('java.nio.file.Path');
+  const System = Java.use('java.lang.System');
+  const Arrays = Java.use('java.util.Arrays');
+
+  // ****** Reflexive Method Calls ******
+
+  // Method.invoke(obj, ..args)
   Method.invoke.overload(
     "java.lang.Object", "[Ljava.lang.Object;" // the Frida type parser is so cursted...
   ).implementation = function (obj, args) {
@@ -87,6 +98,10 @@ Java.perform(() => {
     });
     return this.invoke(obj, args);
   };
+
+  // ****** Reflexive Class Instantiation ******
+
+  // Class.newInstance()
   Class.newInstance.overload(
   ).implementation = function () {
     send({
@@ -106,6 +121,7 @@ Java.perform(() => {
     });
     return this.newInstance();
   };
+  // Constructor.newInstance(..args)
   Constructor.newInstance.overload(
     "[Ljava.lang.Object;"
   ).implementation = function (args) {
@@ -129,5 +145,120 @@ Java.perform(() => {
     return this.newInstance(args);
   };
 
+  // ****** Dynamic Class Loading ******
+
+  // DexFile.openDexFileNative(sourceName, outputName, flags, loader, elements): load .dex from file
+  // See https://cs.android.com/android/platform/superproject/main/+/main:libcore/dalvik/src/main/java/dalvik/system/DexFile.java;drc=2f8a31e93fc238a88a48bfeed82557e07e1d5003;l=477
+  // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/native/dalvik_system_DexFile.cc;drc=3d19fbcc09b1b44928639b06cd0b88f735cd988d;l=368
+  DexFile.openDexFileNative.overload(
+    'java.lang.String',
+    'java.lang.String',
+    'int',
+    'java.lang.ClassLoader',
+    '[Ldalvik.system.DexPathList$Element;',
+  ).implementation = function (
+    sourceName,
+    outputName,
+    flags,
+    loader,
+    elements,
+  ) {
+    let file = File.$new(sourceName);
+
+    let path = Path.of(sourceName, []);
+    let dex = Files.readAllBytes(path);
+    let b64 = Base64.encodeToString(dex, Base64.DEFAULT.value);
+    let classloader_class = "";
+    let classloader_id = System.identityHashCode(loader);
+    if (loader !== null) {
+      classloader_class = loader.getClass().descriptorString();
+    }
+    send({
+      "type": "load-dex",
+      "data": {
+        "dex": [b64],
+        "classloader_class": classloader_class,
+        "classloader": classloader_id,
+      }
+    });
+
+    let is_wr = file.canWrite();
+    if (is_wr) {
+      file.setReadOnly();
+    }
+    let result = this.openDexFileNative(
+      sourceName,
+      outputName,
+      flags,
+      loader,
+      elements,
+    );
+    /* TODO: FIX
+    if (is_wr) {
+      file.setWritable(true, false);
+    }
+    */
+    return result;
+  };
+  // DexFile.openInMemoryDexFilesNative(bufs, arrays, starts, ends, loader,elements): load .dex from memory
+  // See https://cs.android.com/android/platform/superproject/main/+/main:libcore/dalvik/src/main/java/dalvik/system/DexFile.java;drc=2f8a31e93fc238a88a48bfeed82557e07e1d5003;l=431
+  // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/native/dalvik_system_DexFile.cc;l=253;drc=3d19fbcc09b1b44928639b06cd0b88f735cd988d
+  DexFile.openInMemoryDexFilesNative.overload(
+    '[Ljava.nio.ByteBuffer;',
+    '[[B',
+    '[I',
+    '[I',
+    'java.lang.ClassLoader',
+    '[Ldalvik.system.DexPathList$Element;',
+  ).implementation = function (
+    bufs,
+    arrays,
+    starts,
+    ends,
+    loader,
+    elements,
+  ) {
+    let dex = [];
+    // openInMemoryDexFilesNative() checks bufs.length == arrays.length == starts.length === ends.length
+    for (let i = 0; i < bufs.length; i++) {
+      let s = starts[i];
+      let e = starts[i];
+      // openInMemoryDexFilesNative() checks s < e
+      let array = arrays[i];
+      let buf = bufs[i];
+      let raw = [];
+      // match code from art/runtime/native/dalvik_system_DexFile.cc commit 3d19fbcc09b1b44928639b06cd0b88f735cd988d
+      if (array === null) {
+	raw = Arrays.copyOf([], e-s);
+        raw = buf.get(s, raw, 0, e-s);
+      } else {
+        raw = Arrays.copyOfRange(array, s, e);
+      }
+      let b64 = Base64.encodeToString(raw, Base64.DEFAULT.value);
+      dex.push(b64);
+    }
+
+    let classloader_class = "";
+    let classloader_id = System.identityHashCode(loader);
+    if (loader !== null) {
+      classloader_class = loader.getClass().descriptorString();
+    }
+    send({
+      "type": "load-dex",
+      "data": {
+        "dex": dex,
+        "classloader_class": classloader_class,
+        "classloader": classloader_id,
+      }
+    });
+    return this.openInMemoryDexFilesNative(
+      bufs,
+      arrays,
+      starts,
+      ends,
+      loader,
+      elements,
+    );
+  };
 });
 
