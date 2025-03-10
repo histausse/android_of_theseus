@@ -143,7 +143,6 @@ def handle_load_dex(data, data_storage: dict, file_storage: Path):
     print("DEX file loaded:")
     print(f"    by:     {classloader_class} ({classloader})")
     for file in dex:
-        print(f"{file=}")
         file_bin = base64.b64decode(file)
         hasher = hashlib.sha1()
         hasher.update(file_bin)

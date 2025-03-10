@@ -22,11 +22,26 @@ Java.perform(() => {
   const StackConsumer = Java.ClassFactory.get(myClassLoader).use("theseus.android.StackConsumer");
 
   const get_stack = function () {
+    // console.log(Java.use("android.util.Log").getStackTraceString(Java.use("java.lang.Exception").$new()));
+    //
+    // TODO: use this instead? (https://developer.android.com/reference/java/lang/StackTraceElement)
+    // Pro: - more robust (cf crash of maltoy app)
+    //      - Works with any android version
+    // Con: - Use java string: may require a lot of parsing
+    //      - Use getLineNumber is iffy: returns either a line number when debug info are available or the dex address
+    //        when no debug info. We prefere the address, but does this means we need to strip the apk before running?
+    // var stack = Java.use("java.lang.Exception").$new().getStackTrace();
+    // for (var i = 0; i < stack.length; i++) {
+    //   console.log(stack[i].toString());
+    // }
+    // return [];
     var stackConsumer = StackConsumer.$new();
     var walker = StackWalker.getInstance(StackWalkerOptionsRetainClassReference);
     walker.forEach(stackConsumer);
+    //walker.walk(stackConsumer.walkNFrame(20));
+    var stack = stackConsumer.getStack()
     //send({"type": "stack", "data": stackConsumer.getStack()});
-    return stackConsumer.getStack().map((frame) => {
+    return stack.map((frame) => {
       return {
         "bytecode_index": frame.getByteCodeIndex(),
         "is_native": frame.isNativeMethod(),
