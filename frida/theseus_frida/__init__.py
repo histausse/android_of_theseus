@@ -141,7 +141,10 @@ def handle_cnstr_new_inst_data(data, data_storage: dict):
 def handle_load_dex(data, data_storage: dict, file_storage: Path):
     dex = data["dex"]
     classloader_class = data["classloader_class"]
-    classloader = data["classloader"].hex()
+    classloader = data["classloader"]
+    if classloader < 0:
+        classloader += 2 << (HASH_NB_BYTES * 8 - 1)
+    classloader = classloader.to_bytes(HASH_NB_BYTES).hex()
     short_class = classloader_class.split("/")[-1].removesuffix(";")
     files = []
     print("DEX file loaded:")

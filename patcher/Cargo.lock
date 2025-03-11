@@ -35,7 +35,7 @@ dependencies = [
 [[package]]
 name = "androscalpel"
 version = "0.1.0"
-source = "git+ssh://git@git.mineau.eu/histausse/androscalpel.git?rev=610347554d7e46a9213f45b09b76ba7e2bce201b#610347554d7e46a9213f45b09b76ba7e2bce201b"
+source = "git+ssh://git@git.mineau.eu/histausse/androscalpel.git?rev=4c4940e6b1e1760617d2cb86f83a27a7a8e187da#4c4940e6b1e1760617d2cb86f83a27a7a8e187da"
 dependencies = [
  "adler",
  "androscalpel_serializer",
@@ -51,7 +51,7 @@ dependencies = [
 [[package]]
 name = "androscalpel_serializer"
 version = "0.1.0"
-source = "git+ssh://git@git.mineau.eu/histausse/androscalpel.git?rev=610347554d7e46a9213f45b09b76ba7e2bce201b#610347554d7e46a9213f45b09b76ba7e2bce201b"
+source = "git+ssh://git@git.mineau.eu/histausse/androscalpel.git?rev=4c4940e6b1e1760617d2cb86f83a27a7a8e187da#4c4940e6b1e1760617d2cb86f83a27a7a8e187da"
 dependencies = [
  "androscalpel_serializer_derive",
  "log",
@@ -60,7 +60,7 @@ dependencies = [
 [[package]]
 name = "androscalpel_serializer_derive"
 version = "0.1.0"
-source = "git+ssh://git@git.mineau.eu/histausse/androscalpel.git?rev=610347554d7e46a9213f45b09b76ba7e2bce201b#610347554d7e46a9213f45b09b76ba7e2bce201b"
+source = "git+ssh://git@git.mineau.eu/histausse/androscalpel.git?rev=4c4940e6b1e1760617d2cb86f83a27a7a8e187da#4c4940e6b1e1760617d2cb86f83a27a7a8e187da"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -129,7 +129,7 @@ dependencies = [
 [[package]]
 name = "apk_frauder"
 version = "0.1.0"
-source = "git+ssh://git@git.mineau.eu/histausse/androscalpel.git?rev=610347554d7e46a9213f45b09b76ba7e2bce201b#610347554d7e46a9213f45b09b76ba7e2bce201b"
+source = "git+ssh://git@git.mineau.eu/histausse/androscalpel.git?rev=4c4940e6b1e1760617d2cb86f83a27a7a8e187da#4c4940e6b1e1760617d2cb86f83a27a7a8e187da"
 dependencies = [
  "androscalpel_serializer",
  "flate2",

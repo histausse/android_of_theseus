@@ -1,5 +1,6 @@
 use androscalpel::{IdMethod, Instruction};
 
+pub mod code_loading_patcher;
 pub mod dex_types;
 pub mod reflection_patcher;
 pub mod register_manipulation;

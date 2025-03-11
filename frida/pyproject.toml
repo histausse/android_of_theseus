@@ -19,7 +19,7 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-collect-reflection-data  = 'theseus_frida.__init__:main'
+collect-runtime-data = 'theseus_frida.__init__:main'
 
 [tool.poetry]
 include = [

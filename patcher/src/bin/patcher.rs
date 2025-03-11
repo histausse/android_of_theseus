@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use androscalpel::Apk;
 
 use patcher::{
+    code_loading_patcher::insert_code,
     labeling,
     reflection_patcher::transform_method,
     runtime_data::RuntimeData, // ReflectionInvokeData, ReflectionClassNewInstData, ReflectionCnstrNewInstData,
@@ -27,7 +28,7 @@ struct Cli {
     #[arg(short, long)]
     path: PathBuf,
     #[arg(short, long)]
-    reflection_data: PathBuf,
+    runtime_data: PathBuf,
 }
 
 fn main() {
@@ -36,13 +37,13 @@ fn main() {
     let mut apk = Apk::load_apk(File::open(&cli.path).unwrap(), labeling, false).unwrap();
     //println!("{:#?}", apk.list_classes());
     let mut json = String::new();
-    File::open(&cli.reflection_data)
+    File::open(&cli.runtime_data)
         .unwrap()
         .read_to_string(&mut json)
         .unwrap();
-    let reflection_data: RuntimeData = serde_json::from_str(&json).unwrap();
+    let rt_data: RuntimeData = serde_json::from_str(&json).unwrap();
     /*
-    let reflection_data = RuntimeData {
+    let rt_data = RuntimeData {
         invoke_data: vec![
             ReflectionInvokeData {
                 method: IdMethod::from_smali(
@@ -112,14 +113,15 @@ fn main() {
             addr: 0x22,
         }],
     };
-    println!("{}", serde_json::to_string(&reflection_data).unwrap());
+    println!("{}", serde_json::to_string(&rt_data).unwrap());
     */
-    for method in reflection_data.get_method_referenced().iter() {
+    insert_code(&mut apk, &rt_data).unwrap();
+    for method in rt_data.get_method_referenced().iter() {
         if let Some(class) = apk.get_class_mut(&method.class_) {
             //println!("{:#?}", class.direct_methods.keys());
             //println!("{:#?}", class.virtual_methods.keys());
             let method = class.virtual_methods.get_mut(method).unwrap();
-            transform_method(method, &reflection_data).unwrap();
+            transform_method(method, &rt_data).unwrap();
         }
     }
     let mut dex_files = vec![];
@@ -138,7 +140,7 @@ fn main() {
         }
         i += 1;
     }
-    // TODO: aapt would be a lot more stable
+    // TODO: aapt would be a lot more stable?
     apk_frauder::replace_dex(
         cli.path,
         cli.out,
