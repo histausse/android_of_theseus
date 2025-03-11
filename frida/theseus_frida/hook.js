@@ -183,7 +183,7 @@ Java.perform(() => {
     let path = Path.of(sourceName, []);
     let dex = Files.readAllBytes(path);
     let b64 = Base64.encodeToString(dex, Base64.DEFAULT.value);
-    let classloader_class = "";
+    let classloader_class = null;
     let classloader_id = System.identityHashCode(loader);
     if (loader !== null) {
       classloader_class = loader.getClass().descriptorString();

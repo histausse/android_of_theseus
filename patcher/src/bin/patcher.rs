@@ -7,8 +7,8 @@ use androscalpel::Apk;
 
 use patcher::{
     labeling,
-    transform_method,
-    ReflectionData, // ReflectionInvokeData, ReflectionClassNewInstData, ReflectionCnstrNewInstData,
+    reflection_patcher::transform_method,
+    runtime_data::RuntimeData, // ReflectionInvokeData, ReflectionClassNewInstData, ReflectionCnstrNewInstData,
 };
 
 use clap::Parser;
@@ -40,9 +40,9 @@ fn main() {
         .unwrap()
         .read_to_string(&mut json)
         .unwrap();
-    let reflection_data: ReflectionData = serde_json::from_str(&json).unwrap();
+    let reflection_data: RuntimeData = serde_json::from_str(&json).unwrap();
     /*
-    let reflection_data = ReflectionData {
+    let reflection_data = RuntimeData {
         invoke_data: vec![
             ReflectionInvokeData {
                 method: IdMethod::from_smali(
