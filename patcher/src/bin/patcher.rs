@@ -115,7 +115,11 @@ fn main() {
     };
     println!("{}", serde_json::to_string(&rt_data).unwrap());
     */
+
+    // Dynamic Loading
     insert_code(&mut apk, &rt_data).unwrap();
+
+    // Reflection
     let mut test_methods = HashMap::new();
     let test_class = IdType::class("theseus/T");
     for method in rt_data.get_method_referenced().iter() {
@@ -132,7 +136,7 @@ fn main() {
         .into_values()
         .map(|v| (v.descriptor.clone(), v))
         .collect();
-    apk.add_class("classes0.dex", class).unwrap();
+    apk.add_class("classes.dex", class).unwrap();
     let mut dex_files = vec![];
     let mut files = apk.gen_raw_dex().unwrap();
     let mut i = 0;

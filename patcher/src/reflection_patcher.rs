@@ -13,8 +13,8 @@ use crate::{dex_types::*, register_manipulation::*, runtime_data::*};
 /// `meth`: the method that make reflectif calls. This is the method to patch.
 /// `ref_data`: the runtime data containing the reflectif calls informations.
 /// `tester_methods_class`: the class used to define the methods in `tester_methods`
-/// `tester_methods`: the methods used to test if a `java.lang.reflect.Method` is a specific method.
-///     Methods are indexed by the IdMethod they detect, and have a name derived from the method
+/// `tester_methods`: the methods used to test if a `java.lang.reflect.Method` or `java.lang.reflect.Constructor`
+///     is a specific method. Methods are indexed by the IdMethod they detect, and have a name derived from the method
 ///     they detect.
 pub fn transform_method(
     meth: &mut Method,
@@ -275,7 +275,11 @@ fn gen_tester_method(
         format!("{c_name}_{m_name}_{hash:016x}").into(),
         IdMethodType::new(
             IdType::boolean(),
-            vec![IdType::class("java/lang/reflect/Method")],
+            vec![if is_constructor {
+                IdType::class("java/lang/reflect/Constructor")
+            } else {
+                IdType::class("java/lang/reflect/Method")
+            }],
         ),
         tester_methods_class,
     );
@@ -421,17 +425,18 @@ fn gen_tester_method(
             lit: 1,
         },
         Instruction::Return { reg: reg_arr_val },
+        Instruction::Label { name: no_label },
         Instruction::Const {
             reg: reg_arr_val,
             lit: 0,
         },
-        Instruction::Label { name: no_label },
+        Instruction::Return { reg: reg_arr_val },
     ]);
 
     method.is_static = true;
     method.is_final = true;
     method.code = Some(Code::new(
-        3, //registers_size, 3 reg + 1 parameter reg
+        4, //registers_size, 3 reg + 1 parameter reg
         insns,
         Some(vec![Some("meth".into())]), // parameter_names
     ));
