@@ -272,7 +272,7 @@ fn gen_tester_method(
     };
 
     let descriptor = IdMethod::new(
-        format!("{c_name}_{m_name}_{hash:016x}").into(),
+        format!("check_is_{c_name}_{m_name}_{hash:016x}").into(),
         IdMethodType::new(
             IdType::boolean(),
             vec![if is_constructor {
