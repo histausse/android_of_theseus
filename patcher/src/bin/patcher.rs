@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{Cursor, Read};
 use std::path::PathBuf;
 
-use androscalpel::Apk;
+use androscalpel::{Apk, Class, IdType};
 
 use patcher::{
     code_loading_patcher::insert_code,
@@ -116,14 +116,23 @@ fn main() {
     println!("{}", serde_json::to_string(&rt_data).unwrap());
     */
     insert_code(&mut apk, &rt_data).unwrap();
+    let mut test_methods = HashMap::new();
+    let test_class = IdType::class("theseus/T");
     for method in rt_data.get_method_referenced().iter() {
         if let Some(class) = apk.get_class_mut(&method.class_) {
             //println!("{:#?}", class.direct_methods.keys());
             //println!("{:#?}", class.virtual_methods.keys());
             let method = class.virtual_methods.get_mut(method).unwrap();
-            transform_method(method, &rt_data).unwrap();
+            transform_method(method, &rt_data, test_class.clone(), &mut test_methods).unwrap();
         }
     }
+    let mut class = Class::new(test_class.get_name()).unwrap();
+    class.is_final = true;
+    class.direct_methods = test_methods
+        .into_values()
+        .map(|v| (v.descriptor.clone(), v))
+        .collect();
+    apk.add_class("classes0.dex", class).unwrap();
     let mut dex_files = vec![];
     let mut files = apk.gen_raw_dex().unwrap();
     let mut i = 0;

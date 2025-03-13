@@ -1,13 +1,27 @@
 use androscalpel::SmaliName;
-use androscalpel::{IdMethod, IdType, Instruction, Method};
+use androscalpel::{Code, IdMethod, IdMethodType, IdType, Instruction, Method};
 use anyhow::{bail, Context, Result};
 use log::warn;
+
+use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::{dex_types::*, register_manipulation::*, runtime_data::*};
 
 // Interesting stuff: https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/reg_type.h;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=94
 // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/method_verifier.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=5328
-pub fn transform_method(meth: &mut Method, ref_data: &RuntimeData) -> Result<()> {
+/// `meth`: the method that make reflectif calls. This is the method to patch.
+/// `ref_data`: the runtime data containing the reflectif calls informations.
+/// `tester_methods_class`: the class used to define the methods in `tester_methods`
+/// `tester_methods`: the methods used to test if a `java.lang.reflect.Method` is a specific method.
+///     Methods are indexed by the IdMethod they detect, and have a name derived from the method
+///     they detect.
+pub fn transform_method(
+    meth: &mut Method,
+    ref_data: &RuntimeData,
+    tester_methods_class: IdType,
+    tester_methods: &mut HashMap<IdMethod, Method>,
+) -> Result<()> {
     // checking meth.annotations might be usefull at some point
     //println!("{}", meth.descriptor.__str__());
     let invoke_data = ref_data.get_invoke_data_for(&meth.descriptor);
@@ -125,6 +139,8 @@ pub fn transform_method(meth: &mut Method, ref_data: &RuntimeData) -> Result<()>
                             &mut register_info,
                             &end_label,
                             move_ret.clone(),
+                            tester_methods_class.clone(),
+                            tester_methods,
                         )? {
                             new_insns.push(ins);
                         }
@@ -149,6 +165,8 @@ pub fn transform_method(meth: &mut Method, ref_data: &RuntimeData) -> Result<()>
                             &mut register_info,
                             &end_label,
                             move_ret.clone(),
+                            tester_methods_class.clone(),
+                            tester_methods,
                         )? {
                             new_insns.push(ins);
                         }
@@ -232,6 +250,233 @@ pub fn transform_method(meth: &mut Method, ref_data: &RuntimeData) -> Result<()>
     Ok(())
 }
 
+fn gen_tester_method(
+    tester_methods_class: IdType,
+    method_to_test: IdMethod,
+    is_constructor: bool,
+) -> Result<Method> {
+    let mut hasher = DefaultHasher::new();
+    method_to_test.hash(&mut hasher);
+    let hash = hasher.finish();
+    let m_name: String = (&method_to_test.name).try_into()?;
+    let m_name = m_name.replace("<", "").replace(">", "");
+    let c_name = {
+        let class: String = match method_to_test.class_.get_class_name() {
+            None => method_to_test.class_.try_to_smali()?,
+            Some(class) => class.try_into()?,
+        };
+        match class.rsplit_once('/') {
+            None => class,
+            Some((_, name)) => name.to_string(),
+        }
+    };
+
+    let descriptor = IdMethod::new(
+        format!("{c_name}_{m_name}_{hash:016x}").into(),
+        IdMethodType::new(
+            IdType::boolean(),
+            vec![IdType::class("java/lang/reflect/Method")],
+        ),
+        tester_methods_class,
+    );
+    let mut method = Method::new(descriptor);
+    let no_label: String = "lable_no".into();
+    let reg_arr = 0;
+    let reg_arr_idx = 1;
+    let reg_arr_val = 2;
+    let reg_ref_method = 3;
+    // Check for arg type
+    let mut insns = if !is_constructor {
+        vec![
+            Instruction::InvokeVirtual {
+                method: MTH_GET_PARAMS_TY.clone(),
+                args: vec![reg_ref_method],
+            },
+            Instruction::MoveResultObject { to: reg_arr },
+        ]
+    } else {
+        vec![
+            Instruction::InvokeVirtual {
+                method: CNSTR_GET_PARAMS_TY.clone(),
+                args: vec![reg_ref_method],
+            },
+            Instruction::MoveResultObject { to: reg_arr },
+        ]
+    };
+    // First check  the number of args
+    // --------------------
+    insns.append(&mut vec![
+        Instruction::ArrayLength {
+            dest: reg_arr_idx,
+            arr: reg_arr,
+        },
+        Instruction::Const {
+            reg: reg_arr_val,
+            lit: method_to_test.proto.get_parameters().len() as i32,
+        },
+        Instruction::IfNe {
+            a: reg_arr_idx,
+            b: reg_arr_val,
+            label: no_label.clone(),
+        },
+    ]);
+    // then the type of each arg
+    for (i, param) in method_to_test
+        .proto
+        .get_parameters()
+        .into_iter()
+        .enumerate()
+    {
+        insns.push(Instruction::Const {
+            reg: reg_arr_idx,
+            lit: i as i32,
+        });
+        insns.push(Instruction::AGetObject {
+            dest: reg_arr_val,
+            arr: reg_arr,
+            idx: reg_arr_idx,
+        });
+        insns.push(Instruction::ConstClass {
+            reg: reg_arr_idx, // wrong name, but available for tmp val
+            lit: param,
+        });
+        insns.push(Instruction::IfNe {
+            a: reg_arr_idx,
+            b: reg_arr_val,
+            label: no_label.clone(),
+        })
+    }
+    if !is_constructor {
+        insns.append(&mut vec![
+            // Check the runtime method is the right one
+            // Check Name
+            Instruction::InvokeVirtual {
+                method: MTH_GET_NAME.clone(),
+                args: vec![reg_ref_method],
+            },
+            Instruction::MoveResultObject {
+                to: reg_arr_idx, // wrong name, but available for tmp val
+            },
+            Instruction::ConstString {
+                reg: reg_arr_val, // wrong name, but available for tmp val
+                lit: method_to_test.name.clone(),
+            },
+            Instruction::InvokeVirtual {
+                method: STR_EQ.clone(),
+                args: vec![reg_arr_idx as u16, reg_arr_val as u16],
+            },
+            Instruction::MoveResult {
+                to: reg_arr_idx, // wrong name, but available for tmp val
+            },
+            Instruction::IfEqZ {
+                a: reg_arr_idx,
+                label: no_label.clone(),
+            },
+            // Check Return Type
+            Instruction::InvokeVirtual {
+                method: MTH_GET_RET_TY.clone(),
+                args: vec![reg_ref_method],
+            },
+            Instruction::MoveResultObject {
+                to: reg_arr_idx, // wrong name, but available for tmp val
+            },
+            Instruction::ConstClass {
+                reg: reg_arr_val, // wrong name, but available for tmp val
+                lit: method_to_test.proto.get_return_type(),
+            },
+            Instruction::IfNe {
+                a: reg_arr_idx,
+                b: reg_arr_val,
+                label: no_label.clone(),
+            },
+            // Check Declaring Type
+            Instruction::InvokeVirtual {
+                method: MTH_GET_DEC_CLS.clone(),
+                args: vec![reg_ref_method],
+            },
+        ]);
+    }
+    if is_constructor {
+        // Check Declaring Type
+        insns.push(Instruction::InvokeVirtual {
+            method: CNSTR_GET_DEC_CLS.clone(),
+            args: vec![reg_ref_method],
+        });
+    }
+    insns.append(&mut vec![
+        Instruction::MoveResultObject {
+            to: reg_arr_idx, // wrong name, but available for tmp val
+        },
+        Instruction::ConstClass {
+            reg: reg_arr_val, // wrong name, but available for tmp val
+            lit: method_to_test.class_.clone(),
+        },
+        Instruction::IfNe {
+            a: reg_arr_idx,
+            b: reg_arr_val,
+            label: no_label.clone(),
+        },
+        Instruction::Const {
+            reg: reg_arr_val,
+            lit: 1,
+        },
+        Instruction::Return { reg: reg_arr_val },
+        Instruction::Const {
+            reg: reg_arr_val,
+            lit: 0,
+        },
+        Instruction::Label { name: no_label },
+    ]);
+
+    method.is_static = true;
+    method.is_final = true;
+    method.code = Some(Code::new(
+        3, //registers_size, 3 reg + 1 parameter reg
+        insns,
+        Some(vec![Some("meth".into())]), // parameter_names
+    ));
+    Ok(method)
+}
+
+/// Generate bytecode that test if a `java.lang.reflect.Method` is equal to an [`IdMethod`]
+///
+/// - `method_obj_reg`: the register containing the `java.lang.reflect.Method`
+/// - `id_method`: the expected [`IdMethod`].
+/// - `abort_label`: the label where to jump if the method does not match `id_method`.
+/// - `tester_methods_class`: the class used to define the methods in `tester_methods`
+/// - `tester_methods`: the methods used to test if a `java.lang.reflect.Method` is a specific method.
+///     Methods are indexed by the IdMethod they detect, and have a name derived from the method
+///     they detect.
+fn test_method(
+    method_obj_reg: u16,
+    id_method: IdMethod,
+    abort_label: String,
+    reg_inf: &mut RegistersInfo,
+    tester_methods_class: IdType,
+    tester_methods: &mut HashMap<IdMethod, Method>,
+) -> Result<Vec<Instruction>> {
+    use std::collections::hash_map::Entry;
+    let tst_descriptor = match tester_methods.entry(id_method.clone()) {
+        Entry::Occupied(e) => e.into_mut(),
+        Entry::Vacant(e) => e.insert(gen_tester_method(tester_methods_class, id_method, false)?),
+    }
+    .descriptor
+    .clone();
+    Ok(vec![
+        Instruction::InvokeStatic {
+            method: tst_descriptor,
+            args: vec![method_obj_reg],
+        },
+        Instruction::MoveResult {
+            to: reg_inf.array_val,
+        },
+        Instruction::IfEqZ {
+            a: reg_inf.array_val,
+            label: abort_label,
+        },
+    ])
+}
+
 /// Return the MoveResult{,Wide,Object} associated to the last instruction of the iterator.
 fn get_move_result<'a>(
     iter: impl Iterator<Item = &'a Instruction>,
@@ -262,6 +507,8 @@ fn get_invoke_block(
     reg_inf: &mut RegistersInfo,
     end_label: &str,
     move_result: Option<Instruction>,
+    tester_methods_class: IdType,
+    tester_methods: &mut HashMap<IdMethod, Method>,
 ) -> Result<Vec<Instruction>> {
     let (method_obj, obj_inst, arg_arr) = if let &[a, b, c] = invoke_arg {
         (a, b, c)
@@ -292,7 +539,9 @@ fn get_invoke_block(
         ref_data.method.clone(),
         abort_label.clone(),
         reg_inf,
-    );
+        tester_methods_class,
+        tester_methods,
+    )?;
 
     if !ref_data.is_static {
         // Move 'this' to fist arg
@@ -461,126 +710,6 @@ fn get_args_from_obj_arr(
     insns.append(&mut restore_array);
     insns
 }
-/// Generate bytecode that test if a `java.lang.reflect.Method` is equal to an [`IdMethod`]
-///
-/// - `method_obj_reg`: the register containing the `java.lang.reflect.Method`
-/// - `id_method`: the expected [`IdMethod`].
-/// - `abort_label`: the label where to jump if the method does not match `id_method`.
-fn test_method(
-    method_obj_reg: u16,
-    id_method: IdMethod,
-    abort_label: String,
-    reg_inf: &mut RegistersInfo,
-) -> Vec<Instruction> {
-    // Check for arg type
-    let mut insns = vec![
-        Instruction::InvokeVirtual {
-            method: MTH_GET_PARAMS_TY.clone(),
-            args: vec![method_obj_reg],
-        },
-        Instruction::MoveResultObject { to: reg_inf.array },
-    ];
-    // First check  the number of args
-    // TODO: remove, test
-    // --------------------
-    insns.append(&mut vec![
-        Instruction::ArrayLength {
-            dest: reg_inf.array_index,
-            arr: reg_inf.array,
-        },
-        Instruction::Const {
-            reg: reg_inf.array_val,
-            lit: id_method.proto.get_parameters().len() as i32,
-        },
-        Instruction::IfNe {
-            a: reg_inf.array_index,
-            b: reg_inf.array_val,
-            label: abort_label.clone(),
-        },
-    ]);
-    // then the type of each arg
-    for (i, param) in id_method.proto.get_parameters().into_iter().enumerate() {
-        insns.push(Instruction::Const {
-            reg: reg_inf.array_index,
-            lit: i as i32,
-        });
-        insns.push(Instruction::AGetObject {
-            dest: reg_inf.array_val,
-            arr: reg_inf.array,
-            idx: reg_inf.array_index,
-        });
-        insns.push(Instruction::ConstClass {
-            reg: reg_inf.array_index, // wrong name, but available for tmp val
-            lit: param,
-        });
-        insns.push(Instruction::IfNe {
-            a: reg_inf.array_index,
-            b: reg_inf.array_val,
-            label: abort_label.clone(),
-        })
-    }
-    insns.append(&mut vec![
-        // Check the runtime method is the right one
-        // Check Name
-        Instruction::InvokeVirtual {
-            method: MTH_GET_NAME.clone(),
-            args: vec![method_obj_reg],
-        },
-        Instruction::MoveResultObject {
-            to: reg_inf.array_index, // wrong name, but available for tmp val
-        },
-        Instruction::ConstString {
-            reg: reg_inf.array_val, // wrong name, but available for tmp val
-            lit: id_method.name.clone(),
-        },
-        Instruction::InvokeVirtual {
-            method: STR_EQ.clone(),
-            args: vec![reg_inf.array_index as u16, reg_inf.array_val as u16],
-        },
-        Instruction::MoveResult {
-            to: reg_inf.array_index, // wrong name, but available for tmp val
-        },
-        Instruction::IfEqZ {
-            a: reg_inf.array_index,
-            label: abort_label.clone(),
-        },
-        // Check Return Type
-        Instruction::InvokeVirtual {
-            method: MTH_GET_RET_TY.clone(),
-            args: vec![method_obj_reg],
-        },
-        Instruction::MoveResultObject {
-            to: reg_inf.array_index, // wrong name, but available for tmp val
-        },
-        Instruction::ConstClass {
-            reg: reg_inf.array_val, // wrong name, but available for tmp val
-            lit: id_method.proto.get_return_type(),
-        },
-        Instruction::IfNe {
-            a: reg_inf.array_index,
-            b: reg_inf.array_val,
-            label: abort_label.clone(),
-        },
-        // Check Declaring Type
-        Instruction::InvokeVirtual {
-            method: MTH_GET_DEC_CLS.clone(),
-            args: vec![method_obj_reg],
-        },
-        Instruction::MoveResultObject {
-            to: reg_inf.array_index, // wrong name, but available for tmp val
-        },
-        Instruction::ConstClass {
-            reg: reg_inf.array_val, // wrong name, but available for tmp val
-            lit: id_method.class_.clone(),
-        },
-        Instruction::IfNe {
-            a: reg_inf.array_index,
-            b: reg_inf.array_val,
-            label: abort_label.clone(),
-        },
-    ]);
-    insns
-}
 
 fn get_cnstr_new_inst_block(
     ref_data: &ReflectionCnstrNewInstData,
@@ -588,6 +717,8 @@ fn get_cnstr_new_inst_block(
     reg_inf: &mut RegistersInfo,
     end_label: &str,
     move_result: Option<Instruction>,
+    tester_methods_class: IdType,
+    tester_methods: &mut HashMap<IdMethod, Method>,
 ) -> Result<Vec<Instruction>> {
     let (cnst_reg, arg_arr) = if let &[a, b] = invoke_arg {
         (a, b)
@@ -597,15 +728,6 @@ fn get_cnstr_new_inst_block(
             invoke_arg.len()
         );
     };
-    if cnst_reg > u8::MAX as u16 {
-        // TODO
-        bail!("Cannot transform instantiation calls to a class stored in 16 bits register");
-    }
-    if reg_inf.first_arg > u8::MAX as u16 {
-        // TODO
-        bail!("Cannot transform instantiation calls to a class with first argument register greater than 255.");
-    }
-    //let cnst_reg = cnst_reg as u8;
 
     let nb_args = ref_data.constructor.proto.get_parameters().len();
     if reg_inf.nb_arg_reg < nb_args as u16 + 1 {
@@ -623,7 +745,9 @@ fn get_cnstr_new_inst_block(
         ref_data.constructor.clone(),
         abort_label.clone(),
         reg_inf,
-    );
+        tester_methods_class,
+        tester_methods,
+    )?;
     insns.append(&mut get_args_from_obj_arr(
         &ref_data.constructor.proto.get_parameters(),
         arg_arr,
@@ -671,70 +795,29 @@ fn test_cnstr(
     id_method: IdMethod,
     abort_label: String,
     reg_inf: &mut RegistersInfo,
-) -> Vec<Instruction> {
-    // Check for arg type
-    let mut insns = vec![
-        Instruction::InvokeVirtual {
-            method: CNSTR_GET_PARAMS_TY.clone(),
-            args: vec![cnst_reg],
-        },
-        Instruction::MoveResultObject { to: reg_inf.array },
-        // First check  the number of args
-        Instruction::ArrayLength {
-            dest: reg_inf.array_index,
-            arr: reg_inf.array,
-        },
-        Instruction::Const {
-            reg: reg_inf.array_val,
-            lit: id_method.proto.get_parameters().len() as i32,
-        },
-        Instruction::IfNe {
-            a: reg_inf.array_index,
-            b: reg_inf.array_val,
-            label: abort_label.clone(),
-        },
-    ];
-    // then the type of each arg
-    for (i, param) in id_method.proto.get_parameters().into_iter().enumerate() {
-        insns.push(Instruction::Const {
-            reg: reg_inf.array_index,
-            lit: i as i32,
-        });
-        insns.push(Instruction::AGetObject {
-            dest: reg_inf.array_val,
-            arr: reg_inf.array,
-            idx: reg_inf.array_index,
-        });
-        insns.push(Instruction::ConstClass {
-            reg: reg_inf.array_index, // wrong name, but available for tmp val
-            lit: param,
-        });
-        insns.push(Instruction::IfNe {
-            a: reg_inf.array_index,
-            b: reg_inf.array_val,
-            label: abort_label.clone(),
-        })
+    tester_methods_class: IdType,
+    tester_methods: &mut HashMap<IdMethod, Method>,
+) -> Result<Vec<Instruction>> {
+    use std::collections::hash_map::Entry;
+    let tst_descriptor = match tester_methods.entry(id_method.clone()) {
+        Entry::Occupied(e) => e.into_mut(),
+        Entry::Vacant(e) => e.insert(gen_tester_method(tester_methods_class, id_method, true)?),
     }
-    insns.append(&mut vec![
-        // Check Declaring Type
-        Instruction::InvokeVirtual {
-            method: CNSTR_GET_DEC_CLS.clone(),
+    .descriptor
+    .clone();
+    Ok(vec![
+        Instruction::InvokeStatic {
+            method: tst_descriptor,
             args: vec![cnst_reg],
         },
-        Instruction::MoveResultObject {
-            to: reg_inf.array_index, // wrong name, but available for tmp val
+        Instruction::MoveResult {
+            to: reg_inf.array_val,
         },
-        Instruction::ConstClass {
-            reg: reg_inf.array_val, // wrong name, but available for tmp val
-            lit: id_method.class_.clone(),
+        Instruction::IfEqZ {
+            a: reg_inf.array_val,
+            label: abort_label,
         },
-        Instruction::IfNe {
-            a: reg_inf.array_index,
-            b: reg_inf.array_val,
-            label: abort_label.clone(),
-        },
-    ]);
-    insns
+    ])
 }
 
 fn get_class_new_inst_block(
