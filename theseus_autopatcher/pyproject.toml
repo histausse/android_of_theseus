@@ -7,9 +7,10 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.13,<4.0.0"
-dependencies = [
-    "theseus-frida @ file:///home/histausse/workspace/dev/Project/android_of_theseus/frida"
-]
+#dependencies = []
+
+[tool.poetry.dependencies]
+theseus-frida = { path = "../frida" }
 
 [tool.poetry]
 packages = [{include = "theseus_autopatcher", from = "src"}]

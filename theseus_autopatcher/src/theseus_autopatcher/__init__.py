@@ -207,9 +207,7 @@ def main():
     if not args.keystore.exists():
         gen_keystore(keytool, args.keystore)
 
-    tmpdname = "/tmp/tmp.xzq9jLxUbQ/tmp"
-    if True:
-        # with tempfile.TemporaryDirectory() as tmpdname:
+    with tempfile.TemporaryDirectory() as tmpdname:
         tmpd = Path(tmpdname)
         (tmpd / "dex").mkdir()
         with (tmpd / "runtime.json").open("w") as fp:
