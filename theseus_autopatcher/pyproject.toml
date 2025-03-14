@@ -1,0 +1,23 @@
+[project]
+name = "theseus-autopatcher"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Jean-Marie 'Histausse' Mineau",email = "histausse@protonmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<4.0.0"
+dependencies = [
+    "theseus-frida @ file:///home/histausse/workspace/dev/Project/android_of_theseus/frida"
+]
+
+[tool.poetry]
+packages = [{include = "theseus_autopatcher", from = "src"}]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+theseus-autopatch = 'theseus_autopatcher.__init__:main'
