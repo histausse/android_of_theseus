@@ -8,7 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13,<4.0.0"
 dependencies = [
-    "frida (>=16.6.6,<17.0.0)",
+    "frida (==16.7.0)",
     "frida-tools (>=13.6.1,<14.0.0)",
     "androguard (>=4.1.2,<5.0.0)"
 ]
@@ -24,5 +24,6 @@ collect-runtime-data = 'theseus_frida.__init__:main'
 [tool.poetry]
 include = [
   { path = "theseus_frida/hook.js", format = ["sdist", "wheel"] },
-  { path = "theseus_frida/StackConsumer.dex.b64", format = ["sdist", "wheel"] }
+  { path = "theseus_frida/StackConsumer.dex.b64", format = ["sdist", "wheel"] },
+  { path = "theseus_frida/frida-server-16.7.0-android-x86_64.xz", format = ["sdist", "wheel"] }
 ]
