@@ -83,9 +83,9 @@ pub fn transform_method(
                     while move_ret.as_ref() != iter.next() {}
                 }
                 let end_label = if method == &*MTH_INVOKE {
-                    format!("end_reflection_call_at_{}", "TODO_ADDR")
+                    format!("end_reflection_call_at_{}", addr_label.clone())
                 } else if method == &*CLASS_NEW_INST || method == &*CNSTR_NEW_INST {
-                    format!("end_reflection_instanciation_at_{}", "TODO_ADDR")
+                    format!("end_reflection_instanciation_at_{}", addr_label.clone())
                 } else {
                     panic!("Should not happen!")
                 };
@@ -740,9 +740,9 @@ fn get_cnstr_new_inst_block(
     }
 
     let abort_label = format!(
-        "end_static_instance_with_{}_at_{}",
+        "end_static_instance_with_{}_at_{:08X}",
         ref_data.constructor.try_to_smali()?,
-        "TODO_ADDR"
+        ref_data.addr
     );
 
     let mut insns = test_cnstr(
@@ -854,9 +854,9 @@ fn get_class_new_inst_block(
     let class_reg = class_reg as u8;
 
     let abort_label = format!(
-        "end_static_instance_with_{}_at_{}",
+        "end_static_instance_with_{}_at_{:08X}",
         ref_data.constructor.try_to_smali()?,
-        "TODO_ADDR"
+        ref_data.addr
     );
 
     let obj_reg = match move_result {
