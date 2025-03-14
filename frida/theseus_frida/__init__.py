@@ -5,7 +5,9 @@ import hashlib
 import subprocess
 import time
 import json
+import sys
 from pathlib import Path
+from typing import TextIO
 
 import frida  # type: ignore
 from androguard.core.apk import get_apkid  # type: ignore
@@ -244,52 +246,23 @@ def setup_frida(device: str, env: dict[str, str]) -> frida.core.Device:
             time.sleep(0.3)
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        prog="Android Theseus project",
-    )
-    parser.add_argument(
-        "-a", "--apk", required=True, help="Target application", type=Path
-    )
-    parser.add_argument(
-        "-s",
-        "--device",
-        default="",
-        help="The android device to connect to, eg: 'emulator-5554'",
-        type=str,
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        default=None,
-        help="where to dump the collected data, default is stdout",
-        type=Path,
-    )
-    parser.add_argument(
-        "-d",
-        "--dex-dir",
-        default=Path("."),
-        help="where to store dynamically loaded bytecode",
-        type=Path,
-    )
-    args = parser.parse_args()
+def collect_runtime(apk: Path, device: str, file_storage: Path, output: TextIO):
     env = dict(os.environ)
 
-    file_storage = args.dex_dir
     if not file_storage.exists():
         file_storage.mkdir(parents=True)
     if not file_storage.is_dir():
-        print("[!] --dex-dir must be a directory")
+        print("[!] file_storage must be a directory")
         exit()
 
-    device = setup_frida(args.device, env)
+    device = setup_frida(device, env)
 
-    app = get_apkid(args.apk)[0]
+    app = get_apkid(apk)[0]
 
     if device.enumerate_applications([app]):
         # Uninstall the APK if it already exist
         subprocess.run(["adb", "uninstall", app], env=env)
-    subprocess.run(["adb", "install", str(args.apk.absolute())], env=env)
+    subprocess.run(["adb", "install", str(apk.absolute())], env=env)
 
     with FRIDA_SCRIPT.open("r") as file:
         script = file.read()
@@ -332,8 +305,50 @@ def main():
 
     print("==> Press ENTER to finish the analysis <==")
     input()
+    json.dump(data_storage, output, indent="  ")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="Android Theseus project",
+    )
+    parser.add_argument(
+        "-a", "--apk", required=True, help="Target application", type=Path
+    )
+    parser.add_argument(
+        "-s",
+        "--device",
+        default="",
+        help="The android device to connect to, eg: 'emulator-5554'",
+        type=str,
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        default=None,
+        help="where to dump the collected data, default is stdout",
+        type=Path,
+    )
+    parser.add_argument(
+        "-d",
+        "--dex-dir",
+        default=Path("."),
+        help="where to store dynamically loaded bytecode",
+        type=Path,
+    )
+    args = parser.parse_args()
     if args.output is None:
-        print(json.dumps(data_storage, indent="  "))
+        collect_runtime(
+            apk=args.apk,
+            device=args.device,
+            file_storage=args.dex_dir,
+            output=sys.stdout,
+        )
     else:
         with args.output.open("w") as fp:
-            json.dump(data_storage, fp)
+            collect_runtime(
+                apk=args.apk,
+                device=args.device,
+                file_storage=args.dex_dir,
+                output=fp,
+            )
