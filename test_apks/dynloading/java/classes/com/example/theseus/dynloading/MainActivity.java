@@ -195,6 +195,7 @@ public class MainActivity extends Activity {
             Method mth = clz.getMethod("getColliderId");
             String id = (String)mth.invoke(null);
             //Utils.popup(this, "Result", id);
+            Utils.popup(this, "TEST", clz.descriptorString());
             String expectedId = "A";
             if (id.equals(expectedId)) {
                 Utils.popup(this, "OK", "The right class was loaded: " + id);
