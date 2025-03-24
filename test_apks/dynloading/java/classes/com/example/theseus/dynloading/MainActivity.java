@@ -170,7 +170,7 @@ public class MainActivity extends Activity {
             //Utils.popup(this, "Result", id);
             String expectedId = "MainAPK";
             if (id.equals(expectedId)) {
-                Utils.popup(this, "OK", "The right class was loaded");
+                Utils.popup(this, "OK", "The right class was loaded: " + id);
             } else {
                 Utils.popup(this, "BAD", "The wrong class was loaded: id = " + id + " expected id = " + expectedId);
             }
@@ -197,7 +197,7 @@ public class MainActivity extends Activity {
             //Utils.popup(this, "Result", id);
             String expectedId = "A";
             if (id.equals(expectedId)) {
-                Utils.popup(this, "OK", "The right class was loaded");
+                Utils.popup(this, "OK", "The right class was loaded: " + id);
             } else {
                 Utils.popup(this, "BAD", "The wrong class was loaded: id = " + id + " expected id = " + expectedId);
             }
@@ -224,7 +224,7 @@ public class MainActivity extends Activity {
             //Utils.popup(this, "Result", id);
             String expectedId = "MainAPK";
             if (id.equals(expectedId)) {
-                Utils.popup(this, "OK", "The right class was loaded");
+                Utils.popup(this, "OK", "The right class was loaded: " + id);
             } else {
                 Utils.popup(this, "BAD", "The wrong class was loaded: id = " + id + " expected id = " + expectedId);
             }
@@ -251,7 +251,7 @@ public class MainActivity extends Activity {
             //Utils.popup(this, "Result", id);
             String expectedId = "A";
             if (id.equals(expectedId)) {
-                Utils.popup(this, "OK", "The right class was loaded");
+                Utils.popup(this, "OK", "The right class was loaded: " + id);
             } else {
                 Utils.popup(this, "BAD", "The wrong class was loaded: id = " + id + " expected id = " + expectedId);
             }

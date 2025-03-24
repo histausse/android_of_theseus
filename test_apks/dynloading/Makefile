@@ -4,7 +4,7 @@ JAVA_PATH=/usr/lib/jvm/java-17-openjdk/bin
 JAVAC=/usr/lib/jvm/java-17-openjdk/bin/javac
 JAR=/usr/lib/jvm/java-17-openjdk/bin/jar
 PYTHON=python3
-APP=test_reflection
+APP=test_dynloading
 
 PACKAGE=com.example.theseus.dynloading
 MAIN_ACTIVITY=MainActivity
