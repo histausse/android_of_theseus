@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use androscalpel::{Apk, Class, IdType};
 
 use patcher::{
-    code_loading_patcher::insert_code,
+    code_loading_patcher::{insert_code, CodePatchingStrategy},
     labeling,
     reflection_patcher::transform_method,
     runtime_data::RuntimeData, // ReflectionInvokeData, ReflectionClassNewInstData, ReflectionCnstrNewInstData,
@@ -29,6 +29,8 @@ struct Cli {
     path: PathBuf,
     #[arg(short, long)]
     runtime_data: PathBuf,
+    #[arg(short, long, default_value_t, value_enum)]
+    code_loading_patch_strategy: CodePatchingStrategy,
 }
 
 fn main() {
@@ -42,82 +44,9 @@ fn main() {
         .read_to_string(&mut json)
         .unwrap();
     let rt_data: RuntimeData = serde_json::from_str(&json).unwrap();
-    /*
-    let rt_data = RuntimeData {
-        invoke_data: vec![
-            ReflectionInvokeData {
-                method: IdMethod::from_smali(
-                    "Lcom/example/theseus/reflection/Reflectee;\
-                    ->transfer\
-                    (Ljava/lang/String;)Ljava/lang/String;",
-                )
-                .unwrap(),
-                caller_method: IdMethod::from_smali(
-                    "Lcom/example/theseus/reflection/MainActivity;\
-                    ->callVirtualMethodReflectCall()V",
-                )
-                .unwrap(),
-                addr: 0x2B,
-            },
-            ReflectionInvokeData {
-                method: IdMethod::from_smali(
-                    "Lcom/example/theseus/reflection/Reflectee;\
-                    ->transfer(Ljava/lang/String;)Ljava/lang/String;",
-                )
-                .unwrap(),
-                caller_method: IdMethod::from_smali(
-                    "Lcom/example/theseus/reflection/MainActivity;\
-                    ->callConstructorVirtualMethodReflectConstr()V",
-                )
-                .unwrap(),
-                addr: 0x38,
-            },
-            ReflectionInvokeData {
-                method: IdMethod::from_smali(
-                    "Lcom/example/theseus/reflection/Reflectee;\
-                    ->transfer(Ljava/lang/String;)Ljava/lang/String;",
-                )
-                .unwrap(),
-                caller_method: IdMethod::from_smali(
-                    "Lcom/example/theseus/reflection/MainActivity;\
-                    ->callVirtualMethodReflectOldConst()V",
-                )
-                .unwrap(),
-                addr: 0x28,
-            },
-        ],
-        class_new_inst_data: vec![ReflectionClassNewInstData {
-            constructor: IdMethod::from_smali(
-                "Lcom/example/theseus/reflection/Reflectee;\
-                -><init>()V",
-            )
-            .unwrap(),
-            caller_method: IdMethod::from_smali(
-                "Lcom/example/theseus/reflection/MainActivity;\
-                ->callVirtualMethodReflectOldConst()V",
-            )
-            .unwrap(),
-            addr: 0x12,
-        }],
-        cnstr_new_inst_data: vec![ReflectionCnstrNewInstData {
-            constructor: IdMethod::from_smali(
-                "Lcom/example/theseus/reflection/Reflectee;\
-                -><init>(Ljava/lang/String;)V",
-            )
-            .unwrap(),
-            caller_method: IdMethod::from_smali(
-                "Lcom/example/theseus/reflection/MainActivity;\
-                ->callConstructorVirtualMethodReflectConstr()V",
-            )
-            .unwrap(),
-            addr: 0x22,
-        }],
-    };
-    println!("{}", serde_json::to_string(&rt_data).unwrap());
-    */
 
     // Dynamic Loading
-    insert_code(&mut apk, &rt_data).unwrap();
+    insert_code(cli.code_loading_patch_strategy, &mut apk, &rt_data).unwrap();
 
     // Reflection
     let mut test_methods = HashMap::new();
