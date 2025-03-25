@@ -344,11 +344,34 @@ fn gen_tester_method(
             reg: reg_arr_idx, // wrong name, but available for tmp val
             lit: param,
         });
-        insns.push(Instruction::IfNe {
+        insns.push(Instruction::InvokeVirtual {
+            method: CLT_GET_DESCR_STRING.clone(),
+            args: vec![reg_arr_idx as u16],
+        });
+        insns.push(Instruction::MoveResultObject { to: reg_arr_idx });
+        insns.push(Instruction::InvokeVirtual {
+            method: CLT_GET_DESCR_STRING.clone(),
+            args: vec![reg_arr_val as u16],
+        });
+        insns.push(Instruction::MoveResultObject { to: reg_arr_val });
+        insns.push(Instruction::InvokeVirtual {
+            method: STR_EQ.clone(),
+            args: vec![reg_arr_idx as u16, reg_arr_val as u16],
+        });
+        insns.push(Instruction::MoveResult {
+            to: reg_arr_idx, // wrong name, but available for tmp val
+        });
+        insns.push(Instruction::IfEqZ {
             a: reg_arr_idx,
-            b: reg_arr_val,
             label: no_label.clone(),
-        })
+        });
+        // Comparing Type does not work when different types share the same name (eg type from
+        // another class loader)
+        //insns.push(Instruction::IfNe {
+        //    a: reg_arr_idx,
+        //    b: reg_arr_val,
+        //  label: no_label.clone(),
+        //})
     }
     if !is_constructor {
         insns.append(&mut vec![
@@ -388,11 +411,34 @@ fn gen_tester_method(
                 reg: reg_arr_val, // wrong name, but available for tmp val
                 lit: method_to_test.proto.get_return_type(),
             },
-            Instruction::IfNe {
+            Instruction::InvokeVirtual {
+                method: CLT_GET_DESCR_STRING.clone(),
+                args: vec![reg_arr_idx as u16],
+            },
+            Instruction::MoveResultObject { to: reg_arr_idx },
+            Instruction::InvokeVirtual {
+                method: CLT_GET_DESCR_STRING.clone(),
+                args: vec![reg_arr_val as u16],
+            },
+            Instruction::MoveResultObject { to: reg_arr_val },
+            Instruction::InvokeVirtual {
+                method: STR_EQ.clone(),
+                args: vec![reg_arr_idx as u16, reg_arr_val as u16],
+            },
+            Instruction::MoveResult {
+                to: reg_arr_idx, // wrong name, but available for tmp val
+            },
+            Instruction::IfEqZ {
                 a: reg_arr_idx,
-                b: reg_arr_val,
                 label: no_label.clone(),
             },
+            // Comparing Type does not work when different types share the same name (eg type from
+            // another class loader)
+            //Instruction::IfNe {
+            //    a: reg_arr_idx,
+            //    b: reg_arr_val,
+            //    label: no_label.clone(),
+            //},
             // Check Declaring Type
             Instruction::InvokeVirtual {
                 method: MTH_GET_DEC_CLS.clone(),
@@ -415,11 +461,34 @@ fn gen_tester_method(
             reg: reg_arr_val, // wrong name, but available for tmp val
             lit: method_to_test.class_.clone(),
         },
-        Instruction::IfNe {
+        Instruction::InvokeVirtual {
+            method: CLT_GET_DESCR_STRING.clone(),
+            args: vec![reg_arr_idx as u16],
+        },
+        Instruction::MoveResultObject { to: reg_arr_idx },
+        Instruction::InvokeVirtual {
+            method: CLT_GET_DESCR_STRING.clone(),
+            args: vec![reg_arr_val as u16],
+        },
+        Instruction::MoveResultObject { to: reg_arr_val },
+        Instruction::InvokeVirtual {
+            method: STR_EQ.clone(),
+            args: vec![reg_arr_idx as u16, reg_arr_val as u16],
+        },
+        Instruction::MoveResult {
+            to: reg_arr_idx, // wrong name, but available for tmp val
+        },
+        Instruction::IfEqZ {
             a: reg_arr_idx,
-            b: reg_arr_val,
             label: no_label.clone(),
         },
+        // Comparing Type does not work when different types share the same name (eg type from
+        // another class loader)
+        //Instruction::IfNe {
+        //    a: reg_arr_idx,
+        //    b: reg_arr_val,
+        //    label: no_label.clone(),
+        //},
         Instruction::Const {
             reg: reg_arr_val,
             lit: 1,
@@ -869,11 +938,36 @@ fn get_class_new_inst_block(
             reg: reg_inf.array_index, // wrong name, but available for tmp val
             lit: ref_data.constructor.class_.clone(),
         },
-        Instruction::IfNe {
+        Instruction::InvokeVirtual {
+            method: CLT_GET_DESCR_STRING.clone(),
+            args: vec![reg_inf.array_index as u16],
+        },
+        Instruction::MoveResultObject {
+            to: reg_inf.array_index,
+        },
+        Instruction::InvokeVirtual {
+            method: CLT_GET_DESCR_STRING.clone(),
+            args: vec![class_reg as u16],
+        },
+        Instruction::MoveResultObject { to: class_reg },
+        Instruction::InvokeVirtual {
+            method: STR_EQ.clone(),
+            args: vec![reg_inf.array_index as u16, class_reg as u16],
+        },
+        Instruction::MoveResult {
+            to: reg_inf.array_index, // wrong name, but available for tmp val
+        },
+        Instruction::IfEqZ {
             a: reg_inf.array_index,
-            b: class_reg,
             label: abort_label.clone(),
         },
+        // Comparing Type does not work when different types share the same name (eg type from
+        // another class loader)
+        //Instruction::IfNe {
+        //    a: reg_inf.array_index,
+        //    b: class_reg,
+        //    label: abort_label.clone(),
+        //},
         Instruction::NewInstance {
             reg: obj_reg,
             lit: ref_data.constructor.class_.clone(),

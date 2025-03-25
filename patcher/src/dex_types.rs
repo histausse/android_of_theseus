@@ -42,6 +42,9 @@ pub(crate) static CNSTR_GET_DEC_CLS: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali("Ljava/lang/reflect/Constructor;->getDeclaringClass()Ljava/lang/Class;")
         .unwrap()
 });
+pub(crate) static CLT_GET_DESCR_STRING: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/Class;->descriptorString()Ljava/lang/String;").unwrap()
+});
 pub(crate) static OBJ_TO_SCAL_BOOL: LazyLock<IdMethod> =
     LazyLock::new(|| IdMethod::from_smali("Ljava/lang/Boolean;->booleanValue()Z").unwrap());
 pub(crate) static OBJ_TO_SCAL_BYTE: LazyLock<IdMethod> =
