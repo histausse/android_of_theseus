@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 
-use androscalpel::{Apk, DexString, IdType, VisitableMut, VisitorMut};
+use androscalpel::{Apk, DexString, IdType, VisitorMut};
 use anyhow::{Context, Result};
 use clap::ValueEnum;
 
@@ -70,17 +70,30 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
         };
         let collisions = class_defined.intersection(&classes);
         for cls in collisions {
-            class_loader.rename_classdef(cls);
+            class_loader.rename_classdef(cls)?;
         }
         class_defined.extend(classes);
 
         class_loaders.insert(dyn_data.classloader.clone(), class_loader);
     }
-    // TODO: rename colliding classes according to class laoder
     // TODO: get the ClassLoader::parent values...
     // TODO: model the delegation behavior and rename ref to class accordingly
     // TODO: update Runtime Data to reflect the name change
-    todo!()
+
+    let apk = if let ApkOrRef::Ref(apk) = class_loaders.remove("MAIN").unwrap().apk {
+        apk
+    } else {
+        panic!("Main APK is not stored as ref?")
+    };
+    for (_, ClassLoader { apk: other, .. }) in class_loaders.into_iter() {
+        if let ApkOrRef::Owned(other) = other {
+            apk.merge(other);
+        } else {
+            panic!("Secondary APK is not stored as owned?")
+        }
+    }
+    //todo!()
+    Ok(())
 }
 
 /// Structure modelizing a class loader.
@@ -129,13 +142,18 @@ impl ClassLoader<'_> {
             new_name.try_to_smali().unwrap(),
         );
 
-        let class = self.apk().remove_class(cls, None).with_context(|| {
+        let class = self.apk().remove_class(cls, None)?.with_context(|| {
             format!(
                 "Try to rename classdef of {} in class loader {}, but classdef not found",
                 cls.__str__(),
                 &id
             )
         })?;
+        let class = RenameTypeVisitor {
+            new_names: [(cls.clone(), new_name.clone())].into(),
+        }
+        .visit_class(class)?;
+        self.apk().add_class("classes.dex", class)?;
 
         self.renamed_classes.insert(cls.clone(), new_name);
         Ok(())

@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-androscalpel = { git = "ssh://git@git.mineau.eu/histausse/androscalpel.git", rev = "5379c29", features = ["code-analysis"] }
-apk_frauder = { git = "ssh://git@git.mineau.eu/histausse/androscalpel.git", rev = "5379c29"}
+androscalpel = { git = "ssh://git@git.mineau.eu/histausse/androscalpel.git", rev = "c0152e7", features = ["code-analysis"] }
+apk_frauder = { git = "ssh://git@git.mineau.eu/histausse/androscalpel.git", rev = "c0152e7"}
 anyhow = { version = "1.0.95", features = ["backtrace"] }
 clap = { version = "4.5.27", features = ["derive"] }
 env_logger = "0.11.6"
