@@ -1,0 +1,1 @@
+cargo run --bin patcher -- --code-loading-patch-strategy model-class-loaders --runtime-data ./tst/runtime.json --path ../test_apks/dynloading/build/test_dynloading.apk --out /tmp/patched_dynloading.apk -k ../test_apks/dynloading/ToyKey.keystore -z $(which zipalign) -a $(which apksigner)

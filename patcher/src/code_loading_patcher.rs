@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 
 use androscalpel::{Apk, IdType};
@@ -38,13 +38,16 @@ fn insert_code_naive(apk: &mut Apk, data: &RuntimeData) -> Result<()> {
 }
 
 fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<()> {
+    let mut class_defined = apk.list_classes();
     let mut class_loaders = HashMap::new();
     class_loaders.insert(
         "MAIN".to_string(),
         ClassLoader {
+            id: "MAIN".to_string(),
             parent: None,
             class: IdType::from_smali("Ljava/lang/Boolean;").unwrap(),
             apk: ApkOrRef::Ref(apk),
+            renamed_classes: HashSet::new(),
         },
     );
     for dyn_data in &data.dyn_code_load {
@@ -54,17 +57,25 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
             let file = File::open(file)?;
             apk.add_code(file, crate::labeling, false)?;
         }
+
         assert!(!class_loaders.contains_key(&dyn_data.classloader));
-        class_loaders.insert(
-            dyn_data.classloader.clone(),
-            ClassLoader {
-                parent: None,
-                class,
-                apk: ApkOrRef::Owned(apk),
-            },
-        );
+
+        let classes = apk.list_classes();
+        let mut class_loader = ClassLoader {
+            id: dyn_data.classloader.clone(),
+            parent: None,
+            class,
+            apk: ApkOrRef::Owned(apk),
+            renamed_classes: HashSet::new(),
+        };
+        let collisions = class_defined.intersection(&classes);
+        for cls in collisions {
+            class_loader.rename_classdef(cls);
+        }
+        class_defined.extend(classes);
+
+        class_loaders.insert(dyn_data.classloader.clone(), class_loader);
     }
-    // TODO: list colliding classes
     // TODO: rename colliding classes according to class laoder
     // TODO: get the ClassLoader::parent values...
     // TODO: model the delegation behavior and rename ref to class accordingly
@@ -75,9 +86,11 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
 /// Structure modelizing a class loader.
 #[derive(Debug, PartialEq)]
 struct ClassLoader<'a> {
+    pub id: String,
     pub parent: Option<String>,
     pub class: IdType,
     pub apk: ApkOrRef<'a>,
+    pub renamed_classes: HashSet<IdType>,
 }
 
 impl ClassLoader<'_> {
@@ -86,6 +99,16 @@ impl ClassLoader<'_> {
             ApkOrRef::Owned(ref mut apk) => apk,
             ApkOrRef::Ref(ref mut apk) => apk,
         }
+    }
+
+    pub fn rename_classdef(&mut self, cls: &IdType) {
+        use androscalpel::SmaliName;
+        println!(
+            "TODO: rename {} -> {}_{}",
+            cls.try_to_smali().unwrap(),
+            cls.try_to_smali().unwrap(),
+            self.id
+        );
     }
 }
 

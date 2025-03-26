@@ -10,7 +10,7 @@ from theseus_frida import collect_runtime
 
 def get_android_sdk_path() -> Path | None:
     if "ANDROID_HOME" in os.environ:
-        return os.environ["ANDROID_HOME"]
+        return Path(os.environ["ANDROID_HOME"])
     default = Path.home() / "Android" / "Sdk"
     if default.exists():
         return default
@@ -29,10 +29,10 @@ def get_build_tools_path(toolname: str) -> Path | None:
 
     path = which(toolname)
     if path is not None:
-        return path
+        return Path(path)
     path = which(toolname + ".exe")
     if path is not None:
-        return path
+        return Path(path)
 
     sdk = get_android_sdk_path()
     if sdk is None:
@@ -54,8 +54,12 @@ def get_build_tools_path(toolname: str) -> Path | None:
 def get_keytool_path() -> Path | None:
     path = which("keytool")
     if path is not None:
-        return path
-    return which("keytool.exe")
+        return Path(path)
+    path = which("keytool.exe")
+    if path is not None:
+        return Path(path)
+    else:
+        return None
 
 
 def gen_keystore(keytool: Path, storepath: Path):
