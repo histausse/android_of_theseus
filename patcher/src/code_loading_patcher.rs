@@ -1,8 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::File;
 
-use androscalpel::{Apk, IdType};
-use anyhow::Result;
+use androscalpel::{Apk, DexString, IdType, VisitableMut, VisitorMut};
+use anyhow::{Context, Result};
 use clap::ValueEnum;
 
 use crate::runtime_data::RuntimeData;
@@ -47,7 +47,7 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
             parent: None,
             class: IdType::from_smali("Ljava/lang/Boolean;").unwrap(),
             apk: ApkOrRef::Ref(apk),
-            renamed_classes: HashSet::new(),
+            renamed_classes: HashMap::new(),
         },
     );
     for dyn_data in &data.dyn_code_load {
@@ -66,7 +66,7 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
             parent: None,
             class,
             apk: ApkOrRef::Owned(apk),
-            renamed_classes: HashSet::new(),
+            renamed_classes: HashMap::new(),
         };
         let collisions = class_defined.intersection(&classes);
         for cls in collisions {
@@ -90,25 +90,68 @@ struct ClassLoader<'a> {
     pub parent: Option<String>,
     pub class: IdType,
     pub apk: ApkOrRef<'a>,
-    pub renamed_classes: HashSet<IdType>,
+    pub renamed_classes: HashMap<IdType, IdType>,
 }
 
 impl ClassLoader<'_> {
-    pub fn _apk(&mut self) -> &mut Apk {
+    pub fn apk(&mut self) -> &mut Apk {
         match &mut self.apk {
             ApkOrRef::Owned(ref mut apk) => apk,
             ApkOrRef::Ref(ref mut apk) => apk,
         }
     }
 
-    pub fn rename_classdef(&mut self, cls: &IdType) {
+    pub fn rename_classdef(&mut self, cls: &IdType) -> Result<()> {
         use androscalpel::SmaliName;
+        let id = self.id.clone();
+        let mut i = 0;
+        let name = if let Some(name) = cls.get_class_name() {
+            name
+        } else {
+            log::warn!("Tried to rename non class type {}", cls.__str__());
+            return Ok(());
+        };
+        let new_name = loop {
+            let prefix: DexString = if i == 0 {
+                format!("theseus-dedup/{}/", self.id).into()
+            } else {
+                format!("theseus-dedup/{}-{i}/", self.id).into()
+            };
+            let new_name = IdType::class_from_dex_string(&prefix.concatenate(&name));
+            if self.apk().get_class(&new_name).is_none() {
+                break new_name;
+            }
+            i += 1;
+        };
         println!(
-            "TODO: rename {} -> {}_{}",
+            "TODO: rename {} -> {}",
             cls.try_to_smali().unwrap(),
-            cls.try_to_smali().unwrap(),
-            self.id
+            new_name.try_to_smali().unwrap(),
         );
+
+        let class = self.apk().remove_class(cls, None).with_context(|| {
+            format!(
+                "Try to rename classdef of {} in class loader {}, but classdef not found",
+                cls.__str__(),
+                &id
+            )
+        })?;
+
+        self.renamed_classes.insert(cls.clone(), new_name);
+        Ok(())
+    }
+}
+
+struct RenameTypeVisitor {
+    pub new_names: HashMap<IdType, IdType>,
+}
+
+impl VisitorMut for RenameTypeVisitor {
+    fn visit_type(&mut self, id: IdType) -> Result<IdType> {
+        match self.new_names.get(&id) {
+            Some(newid) => Ok(newid.clone()),
+            None => Ok(id.clone()),
+        }
     }
 }
 
