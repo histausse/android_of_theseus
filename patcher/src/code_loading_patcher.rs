@@ -98,15 +98,17 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
             // and anyway, there is no reason to rename ref in it (its only parent
             // sould be the classbootloader, and we don't handle changing class loader
             // on the fly)
-            if let Some(new_names) = new_names.remove(&k)
-                && k != main_cl_id
-            {
-                v.rename_refs(new_names).map(|v| (k, v))
+            if let Some(new_names) = new_names.remove(&k) {
+                if k != main_cl_id {
+                    v.rename_refs(new_names).map(|v| (k, v))
+                } else {
+                    Ok((k, v))
+                }
             } else {
                 Ok((k, v))
             }
         })
-        .collect()?;
+        .collect::<Result<_>>()?;
 
     // TODO: get the ClassLoader::parent values...
     // TODO: model the delegation behavior and rename ref to class accordingly
