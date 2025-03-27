@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 
 use androscalpel::{Apk, DexString, IdType, VisitorMut};
@@ -39,17 +39,20 @@ fn insert_code_naive(apk: &mut Apk, data: &RuntimeData) -> Result<()> {
 
 fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<()> {
     let mut class_defined = apk.list_classes();
+    let mut class_redefined = HashSet::new();
     let mut class_loaders = HashMap::new();
+    let main_cl_id = "MAIN".to_string();
     class_loaders.insert(
-        "MAIN".to_string(),
+        main_cl_id.clone(),
         ClassLoader {
-            id: "MAIN".to_string(),
+            id: main_cl_id.clone(),
             parent: None,
             class: IdType::from_smali("Ljava/lang/Boolean;").unwrap(),
             apk: ApkOrRef::Ref(apk),
             renamed_classes: HashMap::new(),
         },
     );
+    // -- Rename class def --
     for dyn_data in &data.dyn_code_load {
         let mut apk = Apk::new();
         let class = dyn_data.classloader_class.clone();
@@ -71,16 +74,46 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
         let collisions = class_defined.intersection(&classes);
         for cls in collisions {
             class_loader.rename_classdef(cls)?;
+            class_redefined.insert(cls.clone());
         }
         class_defined.extend(classes);
 
         class_loaders.insert(dyn_data.classloader.clone(), class_loader);
     }
+
+    // -- Rename class ref --
+    let mut new_names: HashMap<_, _> = class_loaders
+        .values()
+        .map(|cl| {
+            (
+                cl.id.clone(),
+                cl.get_ref_new_names(&class_redefined, &class_loaders),
+            )
+        })
+        .collect();
+    class_loaders = class_loaders
+        .into_iter()
+        .map(|(k, v)| {
+            // main_cl_id is not owned, so we can't use the visitor on it,
+            // and anyway, there is no reason to rename ref in it (its only parent
+            // sould be the classbootloader, and we don't handle changing class loader
+            // on the fly)
+            if let Some(new_names) = new_names.remove(&k)
+                && k != main_cl_id
+            {
+                v.rename_refs(new_names).map(|v| (k, v))
+            } else {
+                Ok((k, v))
+            }
+        })
+        .collect()?;
+
     // TODO: get the ClassLoader::parent values...
     // TODO: model the delegation behavior and rename ref to class accordingly
+
     // TODO: update Runtime Data to reflect the name change
 
-    let apk = if let ApkOrRef::Ref(apk) = class_loaders.remove("MAIN").unwrap().apk {
+    let apk = if let ApkOrRef::Ref(apk) = class_loaders.remove(&main_cl_id).unwrap().apk {
         apk
     } else {
         panic!("Main APK is not stored as ref?")
@@ -107,15 +140,20 @@ struct ClassLoader<'a> {
 }
 
 impl ClassLoader<'_> {
-    pub fn apk(&mut self) -> &mut Apk {
+    pub fn apk_mut(&mut self) -> &mut Apk {
         match &mut self.apk {
             ApkOrRef::Owned(ref mut apk) => apk,
             ApkOrRef::Ref(ref mut apk) => apk,
         }
     }
+    pub fn apk(&self) -> &Apk {
+        match &self.apk {
+            ApkOrRef::Owned(ref apk) => apk,
+            ApkOrRef::Ref(ref apk) => apk,
+        }
+    }
 
     pub fn rename_classdef(&mut self, cls: &IdType) -> Result<()> {
-        use androscalpel::SmaliName;
         let id = self.id.clone();
         let mut i = 0;
         let name = if let Some(name) = cls.get_class_name() {
@@ -136,13 +174,8 @@ impl ClassLoader<'_> {
             }
             i += 1;
         };
-        println!(
-            "TODO: rename {} -> {}",
-            cls.try_to_smali().unwrap(),
-            new_name.try_to_smali().unwrap(),
-        );
 
-        let class = self.apk().remove_class(cls, None)?.with_context(|| {
+        let class = self.apk_mut().remove_class(cls, None)?.with_context(|| {
             format!(
                 "Try to rename classdef of {} in class loader {}, but classdef not found",
                 cls.__str__(),
@@ -153,10 +186,71 @@ impl ClassLoader<'_> {
             new_names: [(cls.clone(), new_name.clone())].into(),
         }
         .visit_class(class)?;
-        self.apk().add_class("classes.dex", class)?;
+        self.apk_mut().add_class("classes.dex", class)?;
 
         self.renamed_classes.insert(cls.clone(), new_name);
         Ok(())
+    }
+
+    pub fn get_ref_new_names(
+        &self,
+        tys: &HashSet<IdType>,
+        class_loaders: &HashMap<String, Self>,
+    ) -> HashMap<IdType, IdType> {
+        tys.iter()
+            .map(|ty| {
+                (
+                    ty.clone(),
+                    self.get_ref_new_name(ty, class_loaders)
+                        .unwrap_or(ty.clone()),
+                )
+            })
+            .collect()
+    }
+
+    pub fn get_ref_new_name(
+        &self,
+        ty: &IdType,
+        class_loaders: &HashMap<String, Self>,
+    ) -> Option<IdType> {
+        // TODO: Implemente different class loader behaviors
+        if let Some(ref parent_id) = self.parent {
+            if let Some(parent) = class_loaders.get(parent_id) {
+                if let Some(new_ty) = parent.get_ref_new_name(ty, class_loaders) {
+                    return Some(new_ty);
+                }
+            } else {
+                log::warn!("Class Loader {}({}) has parent {}, but parent was not found in class loader list", self.id, self.class.__str__(), parent_id);
+            }
+        }
+        if let Some(new_ty) = self.renamed_classes.get(ty) {
+            Some(new_ty.clone())
+        } else if self.apk().get_class(ty).is_some() {
+            Some(ty.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn rename_refs(self, new_names: HashMap<IdType, IdType>) -> Result<Self> {
+        let mut visitor = RenameTypeVisitor { new_names };
+        Ok(Self {
+            apk: match self.apk {
+                ApkOrRef::Owned(apk) => match visitor.visit_apk(apk) {
+                    Err(err) => {
+                        log::error!(
+                            "Failed to rename refs in apk of {}({})): {err}",
+                            self.id,
+                            self.class.__str__()
+                        );
+                        return Err(err);
+                    }
+                    Ok(apk) => ApkOrRef::Owned(apk),
+                },
+                ApkOrRef::Ref(apk) => ApkOrRef::Ref(apk),
+            },
+            ..self
+        })
     }
 }
 
