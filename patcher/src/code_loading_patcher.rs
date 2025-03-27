@@ -17,7 +17,7 @@ pub enum CodePatchingStrategy {
 pub fn insert_code(
     strategy: CodePatchingStrategy,
     apk: &mut Apk,
-    data: &RuntimeData,
+    data: &mut RuntimeData,
 ) -> Result<()> {
     match strategy {
         CodePatchingStrategy::Naive => insert_code_naive(apk, data),
@@ -37,11 +37,11 @@ fn insert_code_naive(apk: &mut Apk, data: &RuntimeData) -> Result<()> {
     Ok(())
 }
 
-fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<()> {
+fn insert_code_model_class_loaders(apk: &mut Apk, runtime_data: &mut RuntimeData) -> Result<()> {
     let mut class_defined = apk.list_classes();
     let mut class_redefined = HashSet::new();
     let mut class_loaders = HashMap::new();
-    let main_cl_id = "MAIN".to_string();
+    let main_cl_id = runtime_data.apk_cl_id.clone();
     class_loaders.insert(
         main_cl_id.clone(),
         ClassLoader {
@@ -53,7 +53,7 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
         },
     );
     // -- Rename class def --
-    for dyn_data in &data.dyn_code_load {
+    for dyn_data in &runtime_data.dyn_code_load {
         let mut apk = Apk::new();
         let class = dyn_data.classloader_class.clone();
         for file in &dyn_data.files {
@@ -82,12 +82,14 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
     }
 
     // -- Rename class ref --
-    let mut new_names: HashMap<_, _> = class_loaders
+    let mut renamers: HashMap<_, _> = class_loaders
         .values()
         .map(|cl| {
             (
                 cl.id.clone(),
-                cl.get_ref_new_names(&class_redefined, &class_loaders),
+                RenameTypeVisitor {
+                    new_names: cl.get_ref_new_names(&class_redefined, &class_loaders),
+                },
             )
         })
         .collect();
@@ -98,9 +100,9 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
             // and anyway, there is no reason to rename ref in it (its only parent
             // sould be the classbootloader, and we don't handle changing class loader
             // on the fly)
-            if let Some(new_names) = new_names.remove(&k) {
+            if let Some(renamer) = renamers.get_mut(&k) {
                 if k != main_cl_id {
-                    v.rename_refs(new_names).map(|v| (k, v))
+                    v.rename_refs(renamer).map(|v| (k, v))
                 } else {
                     Ok((k, v))
                 }
@@ -110,24 +112,97 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
         })
         .collect::<Result<_>>()?;
 
-    // TODO: get the ClassLoader::parent values...
-    // TODO: model the delegation behavior and rename ref to class accordingly
+    // -- update Runtime Data to reflect the name change --
+    runtime_data.invoke_data.iter_mut().for_each(|data| {
+        if let Some(visitor) = renamers.get_mut(&data.method_cl_id) {
+            match visitor.visit_method_id(data.method.clone()) {
+                Err(err) => log::warn!(
+                    "Failed to generate new name for {} from {}: {err}",
+                    data.method.__str__(),
+                    data.method_cl_id
+                ),
+                Ok(new_method) => data.renamed_method = Some(new_method),
+            }
+        }
+        if let Some(visitor) = renamers.get_mut(&data.caller_cl_id) {
+            match visitor.visit_method_id(data.caller_method.clone()) {
+                Err(err) => log::warn!(
+                    "Failed to generate new name for {} from {}: {err}",
+                    data.caller_method.__str__(),
+                    data.caller_cl_id
+                ),
+                Ok(new_method) => data.renamed_caller_method = Some(new_method),
+            }
+        }
+    });
+    runtime_data
+        .class_new_inst_data
+        .iter_mut()
+        .for_each(|data| {
+            if let Some(visitor) = renamers.get_mut(&data.constructor_cl_id) {
+                match visitor.visit_method_id(data.constructor.clone()) {
+                    Err(err) => log::warn!(
+                        "Failed to generate new name for {} from {}: {err}",
+                        data.constructor.__str__(),
+                        data.constructor_cl_id
+                    ),
+                    Ok(new_method) => data.renamed_constructor = Some(new_method),
+                }
+            }
+            if let Some(visitor) = renamers.get_mut(&data.caller_cl_id) {
+                match visitor.visit_method_id(data.caller_method.clone()) {
+                    Err(err) => log::warn!(
+                        "Failed to generate new name for {} from {}: {err}",
+                        data.caller_method.__str__(),
+                        data.caller_cl_id
+                    ),
+                    Ok(new_method) => data.renamed_caller_method = Some(new_method),
+                }
+            }
+        });
+    runtime_data
+        .cnstr_new_inst_data
+        .iter_mut()
+        .for_each(|data| {
+            if let Some(visitor) = renamers.get_mut(&data.constructor_cl_id) {
+                match visitor.visit_method_id(data.constructor.clone()) {
+                    Err(err) => log::warn!(
+                        "Failed to generate new name for {} from {}: {err}",
+                        data.constructor.__str__(),
+                        data.constructor_cl_id
+                    ),
+                    Ok(new_method) => data.renamed_constructor = Some(new_method),
+                }
+            }
+            if let Some(visitor) = renamers.get_mut(&data.caller_cl_id) {
+                match visitor.visit_method_id(data.caller_method.clone()) {
+                    Err(err) => log::warn!(
+                        "Failed to generate new name for {} from {}: {err}",
+                        data.caller_method.__str__(),
+                        data.caller_cl_id
+                    ),
+                    Ok(new_method) => data.renamed_caller_method = Some(new_method),
+                }
+            }
+        });
 
-    // TODO: update Runtime Data to reflect the name change
-
-    let apk = match class_loaders.remove(&main_cl_id).unwrap().apk { ApkOrRef::Ref(apk) => {
-        apk
-    } _ => {
-        panic!("Main APK is not stored as ref?")
-    }};
+    // -- inject code to apk --
+    let apk = match class_loaders.remove(&main_cl_id).unwrap().apk {
+        ApkOrRef::Ref(apk) => apk,
+        _ => {
+            panic!("Main APK is not stored as ref?")
+        }
+    };
     for (_, ClassLoader { apk: other, .. }) in class_loaders.into_iter() {
-        match other { ApkOrRef::Owned(other) => {
-            apk.merge(other);
-        } _ => {
-            panic!("Secondary APK is not stored as owned?")
-        }}
+        match other {
+            ApkOrRef::Owned(other) => {
+                apk.merge(other);
+            }
+            _ => {
+                panic!("Secondary APK is not stored as owned?")
+            }
+        }
     }
-    //todo!()
     Ok(())
 }
 
@@ -234,11 +309,10 @@ impl ClassLoader<'_> {
         }
     }
 
-    pub fn rename_refs(self, new_names: HashMap<IdType, IdType>) -> Result<Self> {
-        let mut visitor = RenameTypeVisitor { new_names };
+    pub fn rename_refs(self, renamer: &mut RenameTypeVisitor) -> Result<Self> {
         Ok(Self {
             apk: match self.apk {
-                ApkOrRef::Owned(apk) => match visitor.visit_apk(apk) {
+                ApkOrRef::Owned(apk) => match renamer.visit_apk(apk) {
                     Err(err) => {
                         log::error!(
                             "Failed to rename refs in apk of {}({})): {err}",

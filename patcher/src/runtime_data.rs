@@ -10,6 +10,8 @@ pub struct RuntimeData {
     pub class_new_inst_data: Vec<ReflectionClassNewInstData>,
     pub cnstr_new_inst_data: Vec<ReflectionCnstrNewInstData>,
     pub dyn_code_load: Vec<DynamicCodeLoadingData>,
+    /// The id of the class loader of the apk (the main classloader)
+    pub apk_cl_id: String,
 }
 
 impl RuntimeData {
@@ -91,10 +93,18 @@ impl RuntimeData {
 /// `java.lang.reflect.Method.invoke()`.
 #[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
 pub struct ReflectionInvokeData {
-    /// The method called by `java.lang.reflect.Method.invoke()`
+    /// The method called by `java.lang.reflect.Method.invoke()` (at runtime)
     pub method: IdMethod,
-    /// The method calling `java.lang.reflect.Method.invoke()`
+    /// The id of the classloader defining the constructor
+    pub method_cl_id: String,
+    /// The name of the method to call statically.
+    pub renamed_method: Option<IdMethod>,
+    /// The method calling `java.lang.reflect.Method.invoke()` (at runtime)
     pub caller_method: IdMethod,
+    /// The id of the classloader defining the caller method
+    pub caller_cl_id: String,
+    /// The name of the method that call the method (statically)
+    pub renamed_caller_method: Option<IdMethod>,
     /// Address where the call to `java.lang.reflect.Method.invoke()` was made in `caller_method`.
     pub addr: usize,
     /// If the method is static (static method don't take 'this' as argument)
@@ -108,8 +118,16 @@ pub struct ReflectionInvokeData {
 pub struct ReflectionClassNewInstData {
     /// The constructor called by `java.lang.Class.newInstance()`
     pub constructor: IdMethod,
+    /// The id of the classloader defining the constructor
+    pub constructor_cl_id: String,
+    /// The name of the constructor to call statically.
+    pub renamed_constructor: Option<IdMethod>,
     /// The method calling `java.lang.Class.newInstance()`
     pub caller_method: IdMethod,
+    /// The id of the classloader defining the caller method
+    pub caller_cl_id: String,
+    /// The name of the method that call the method (statically)
+    pub renamed_caller_method: Option<IdMethod>,
     /// Address where the call to `java.lang.Class.newInstance()` was made in `caller_method`.
     pub addr: usize,
 }
@@ -120,8 +138,16 @@ pub struct ReflectionClassNewInstData {
 pub struct ReflectionCnstrNewInstData {
     /// The constructor calleb by `java.lang.reflect.Constructor.newInstance()`
     pub constructor: IdMethod,
+    /// The id of the classloader defining the constructor
+    pub constructor_cl_id: String,
+    /// The name of the constructor to call statically.
+    pub renamed_constructor: Option<IdMethod>,
     /// The method calling `java.lang.reflect.Constructor.newInstance()`
     pub caller_method: IdMethod,
+    /// The id of the classloader defining the caller method
+    pub caller_cl_id: String,
+    /// The name of the method that call the method (statically)
+    pub renamed_caller_method: Option<IdMethod>,
     /// Address where the call to `java.lang.Class.newInstance()` was made in `caller_method`.
     pub addr: usize,
 }
