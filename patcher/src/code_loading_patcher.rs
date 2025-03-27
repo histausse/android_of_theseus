@@ -115,17 +115,17 @@ fn insert_code_model_class_loaders(apk: &mut Apk, data: &RuntimeData) -> Result<
 
     // TODO: update Runtime Data to reflect the name change
 
-    let apk = if let ApkOrRef::Ref(apk) = class_loaders.remove(&main_cl_id).unwrap().apk {
+    let apk = match class_loaders.remove(&main_cl_id).unwrap().apk { ApkOrRef::Ref(apk) => {
         apk
-    } else {
+    } _ => {
         panic!("Main APK is not stored as ref?")
-    };
+    }};
     for (_, ClassLoader { apk: other, .. }) in class_loaders.into_iter() {
-        if let ApkOrRef::Owned(other) = other {
+        match other { ApkOrRef::Owned(other) => {
             apk.merge(other);
-        } else {
+        } _ => {
             panic!("Secondary APK is not stored as owned?")
-        }
+        }}
     }
     //todo!()
     Ok(())
@@ -144,14 +144,14 @@ struct ClassLoader<'a> {
 impl ClassLoader<'_> {
     pub fn apk_mut(&mut self) -> &mut Apk {
         match &mut self.apk {
-            ApkOrRef::Owned(ref mut apk) => apk,
-            ApkOrRef::Ref(ref mut apk) => apk,
+            ApkOrRef::Owned(apk) => apk,
+            ApkOrRef::Ref(apk) => apk,
         }
     }
     pub fn apk(&self) -> &Apk {
         match &self.apk {
-            ApkOrRef::Owned(ref apk) => apk,
-            ApkOrRef::Ref(ref apk) => apk,
+            ApkOrRef::Owned(apk) => apk,
+            ApkOrRef::Ref(apk) => apk,
         }
     }
 
