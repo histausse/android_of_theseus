@@ -11,7 +11,7 @@ pub struct RuntimeData {
     pub cnstr_new_inst_data: Vec<ReflectionCnstrNewInstData>,
     pub dyn_code_load: Vec<DynamicCodeLoadingData>,
     /// The id of the class loader of the apk (the main classloader)
-    pub apk_cl_id: String,
+    pub apk_cl_id: Option<String>,
 }
 
 impl RuntimeData {

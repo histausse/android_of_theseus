@@ -7,6 +7,12 @@ use clap::ValueEnum;
 
 use crate::runtime_data::RuntimeData;
 
+// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+//
+// INSERT EMPTY CLASS LOADERS WHEN ID REFERS TO UNKNOWN CLASS LOADER
+//
+// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+
 #[derive(ValueEnum, Debug, PartialEq, Clone, Copy, Default)]
 pub enum CodePatchingStrategy {
     #[default]
@@ -41,7 +47,10 @@ fn insert_code_model_class_loaders(apk: &mut Apk, runtime_data: &mut RuntimeData
     let mut class_defined = apk.list_classes();
     let mut class_redefined = HashSet::new();
     let mut class_loaders = HashMap::new();
-    let main_cl_id = runtime_data.apk_cl_id.clone();
+    let main_cl_id = runtime_data
+        .apk_cl_id
+        .clone()
+        .unwrap_or_else(|| "MAIN".to_string());
     class_loaders.insert(
         main_cl_id.clone(),
         ClassLoader {

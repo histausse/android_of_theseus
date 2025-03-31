@@ -46,6 +46,7 @@ Java.perform(() => {
         "bytecode_index": frame.getByteCodeIndex(),
         "is_native": frame.isNativeMethod(),
 	"method": frame.getDeclaringClass().descriptorString() + "->" +  frame.getMethodName() + frame.getDescriptor(),
+        "cl_id": System.identityHashCode(frame.getDeclaringClass().getClassLoader()),
 	//{
           //"descriptor": frame.getDescriptor(),
           //"name": frame.getMethodName(),
@@ -101,6 +102,7 @@ Java.perform(() => {
       "type": "invoke", 
 	"data": {
           "method": get_method_dsc(this),
+          "method_cl_id": System.identityHashCode(this.getDeclaringClass().getClassLoader()),
 	  /*{
             "name": this.getName(),
             "class": this.getDeclaringClass().getName(),
@@ -123,6 +125,7 @@ Java.perform(() => {
       "type": "class-new-inst", 
 	"data": {
           "constructor": this.descriptorString() + "-><init>()V",
+          "constructor_cl_id": System.identityHashCode(this.getClassLoader()),
 	  /*{
             "name": "<init>",
             "class": this.getName(),
@@ -144,6 +147,7 @@ Java.perform(() => {
       "type": "cnstr-new-isnt", 
 	"data": {
           "constructor": get_constr_dsc(this),
+          "constructor_cl_id": System.identityHashCode(this.getDeclaringClass().getClassLoader()),
 	  /*
 	  {
             "name": "<init>",
@@ -275,5 +279,22 @@ Java.perform(() => {
       elements,
     );
   };
+
+  // Find the main APK class loader:
+  // Not so easy, just send all class loader and sort this out later:
+  var class_loader = Java.enumerateClassLoadersSync();
+  for (var cl of class_loader) {
+    //if (cl.toString().includes("dalvik.system.PathClassLoader[DexPathList[[directory \".\"],")) {
+    //  continue;
+    //}
+    //if (cl.$className == "java.lang.BootClassLoader") {
+    //  continue;
+    //}
+    send({"type": "classloader", "data": {
+      "id": System.identityHashCode(cl), 
+      "str": cl.toString(),
+      "cname": cl.$className
+    }}); 
+  }
 });
 

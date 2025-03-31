@@ -43,10 +43,11 @@ fn main() {
         .unwrap()
         .read_to_string(&mut json)
         .unwrap();
-    let rt_data: RuntimeData = serde_json::from_str(&json).unwrap();
+    let mut rt_data: RuntimeData = serde_json::from_str(&json).unwrap();
 
     // Dynamic Loading
-    insert_code(cli.code_loading_patch_strategy, &mut apk, &rt_data).unwrap();
+    insert_code(cli.code_loading_patch_strategy, &mut apk, &mut rt_data).unwrap();
+    let rt_data = rt_data; // not mut anymore
 
     // Reflection
     let mut test_methods = HashMap::new();

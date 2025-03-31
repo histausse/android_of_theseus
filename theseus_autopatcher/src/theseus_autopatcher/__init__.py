@@ -8,6 +8,12 @@ from shutil import which
 from theseus_frida import collect_runtime
 
 
+def spinner(symbs: str = "◜◠◝◞◡◟"):
+    while True:
+        for s in symbs:
+            yield s
+
+
 def get_android_sdk_path() -> Path | None:
     if "ANDROID_HOME" in os.environ:
         return Path(os.environ["ANDROID_HOME"])
@@ -216,7 +222,10 @@ def main():
         (tmpd / "dex").mkdir()
         with (tmpd / "runtime.json").open("w") as fp:
             collect_runtime(
-                apk=args.apk, device=args.device, file_storage=tmpd / "dex", output=fp
+                apk=args.apk,
+                device_name=args.device,
+                file_storage=tmpd / "dex",
+                output=fp,
             )
         patch_apk(
             runtime_data=tmpd / "runtime.json",
