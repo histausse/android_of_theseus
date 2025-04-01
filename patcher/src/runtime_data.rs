@@ -112,6 +112,14 @@ pub struct ReflectionInvokeData {
     // TODO: type of invoke?
 }
 
+impl ReflectionInvokeData {
+    pub fn get_static_callee(&self) -> IdMethod {
+        self.renamed_method
+            .clone()
+            .unwrap_or_else(|| self.method.clone())
+    }
+}
+
 /// Structure storing the runtime information of a reflection instanciation using
 /// `java.lang.Class.newInstance()`.
 #[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
@@ -132,6 +140,14 @@ pub struct ReflectionClassNewInstData {
     pub addr: usize,
 }
 
+impl ReflectionClassNewInstData {
+    pub fn get_static_constructor(&self) -> IdMethod {
+        self.renamed_constructor
+            .clone()
+            .unwrap_or_else(|| self.constructor.clone())
+    }
+}
+
 /// Structure storing the runtime information of a reflection instanciation using
 /// `java.lang.reflect.Constructor.newInstance()`.
 #[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
@@ -150,6 +166,14 @@ pub struct ReflectionCnstrNewInstData {
     pub renamed_caller_method: Option<IdMethod>,
     /// Address where the call to `java.lang.Class.newInstance()` was made in `caller_method`.
     pub addr: usize,
+}
+
+impl ReflectionCnstrNewInstData {
+    pub fn get_static_constructor(&self) -> IdMethod {
+        self.renamed_constructor
+            .clone()
+            .unwrap_or_else(|| self.constructor.clone())
+    }
 }
 
 /// Structure storing the runtime information of a dynamic code loading.

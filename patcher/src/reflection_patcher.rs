@@ -627,7 +627,7 @@ fn get_invoke_block(
         });
         insns.push(Instruction::CheckCast {
             reg: reg_inf.array_val,
-            lit: ref_data.method.class_.clone(),
+            lit: ref_data.get_static_callee().class_,
         });
         insns.push(Instruction::MoveObject {
             from: reg_inf.array_val as u16,
@@ -635,24 +635,24 @@ fn get_invoke_block(
         });
     }
     insns.append(&mut get_args_from_obj_arr(
-        &ref_data.method.proto.get_parameters(),
+        &ref_data.get_static_callee().proto.get_parameters(), // TODO: what if renambed args?
         arg_arr,
         reg_inf.first_arg + if ref_data.is_static { 0 } else { 1 },
         reg_inf,
     ));
     if ref_data.is_static {
         insns.push(Instruction::InvokeStatic {
-            method: ref_data.method.clone(),
+            method: ref_data.get_static_callee(),
             args: (reg_inf.first_arg..reg_inf.first_arg + nb_args as u16).collect(),
         });
     } else {
         insns.push(Instruction::InvokeVirtual {
-            method: ref_data.method.clone(),
+            method: ref_data.get_static_callee(),
             args: (reg_inf.first_arg..reg_inf.first_arg + 1 + nb_args as u16).collect(),
         });
     }
     if let Some(move_result) = move_result {
-        let ret_ty = ref_data.method.proto.get_return_type();
+        let ret_ty = ref_data.get_static_callee().proto.get_return_type();
         let res_reg = if let Instruction::MoveResultObject { to } = &move_result {
             *to
         } else {
@@ -816,14 +816,14 @@ fn get_cnstr_new_inst_block(
 
     let mut insns = test_cnstr(
         cnst_reg,
-        ref_data.constructor.clone(),
+        ref_data.constructor.clone(), // TODO: what if args are renammed?
         abort_label.clone(),
         reg_inf,
         tester_methods_class,
         tester_methods,
     )?;
     insns.append(&mut get_args_from_obj_arr(
-        &ref_data.constructor.proto.get_parameters(),
+        &ref_data.constructor.proto.get_parameters(), // TODO: what if args are renammed?
         arg_arr,
         reg_inf.first_arg + 1,
         reg_inf,
@@ -831,12 +831,12 @@ fn get_cnstr_new_inst_block(
     if reg_inf.first_arg < u8::MAX as u16 {
         insns.push(Instruction::NewInstance {
             reg: reg_inf.first_arg as u8,
-            lit: ref_data.constructor.class_.clone(),
+            lit: ref_data.get_static_constructor().class_,
         });
     } else {
         insns.push(Instruction::NewInstance {
             reg: reg_inf.array_val,
-            lit: ref_data.constructor.class_.clone(),
+            lit: ref_data.get_static_constructor().class_,
         });
         insns.push(Instruction::MoveObject {
             from: reg_inf.array_val as u16,
@@ -844,7 +844,7 @@ fn get_cnstr_new_inst_block(
         });
     }
     insns.push(Instruction::InvokeDirect {
-        method: ref_data.constructor.clone(),
+        method: ref_data.get_static_constructor(),
         args: (reg_inf.first_arg..reg_inf.first_arg + nb_args as u16 + 1).collect(),
     });
     if let Some(Instruction::MoveResultObject { to }) = move_result {
@@ -916,10 +916,6 @@ fn get_class_new_inst_block(
         );
     }
 
-    if class_reg > u8::MAX as u16 {
-        // TODO
-        bail!("Cannot transform instantiation calls to a class stored in 16 bits register");
-    }
     let class_reg = class_reg as u8;
 
     let abort_label = format!(
@@ -970,10 +966,10 @@ fn get_class_new_inst_block(
         //},
         Instruction::NewInstance {
             reg: obj_reg,
-            lit: ref_data.constructor.class_.clone(),
+            lit: ref_data.get_static_constructor().class_.clone(),
         },
         Instruction::InvokeDirect {
-            method: ref_data.constructor.clone(),
+            method: ref_data.get_static_constructor().clone(),
             args: vec![obj_reg as u16],
         },
         Instruction::Goto {

@@ -120,6 +120,8 @@ def patch_apk(
                 str(zipalign.absolute()),
                 "-a",
                 str(apksigner.absolute()),
+                "--code-loading-patch-strategy",
+                "model-class-loaders",
             ]
         )
     )

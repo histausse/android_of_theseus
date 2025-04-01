@@ -45,7 +45,7 @@ def on_message(message, data, data_storage: dict, file_storage: Path):
         handle_cnstr_new_inst_data(message["payload"]["data"], data_storage)
     elif message["type"] == "send" and message["payload"]["type"] == "load-dex":
         handle_load_dex(message["payload"]["data"], data_storage, file_storage)
-    elif message["type"] == "send" and message["payload"]["type"] == "apk-cl":
+    elif message["type"] == "send" and message["payload"]["type"] == "classloader":
         handle_classloader_data(message["payload"]["data"], data_storage)
     else:
         print("[-] message:", message)
@@ -59,13 +59,20 @@ def print_stack(stack, prefix: str):
         print(f"  {prefix}{frame['method']}:{frame['bytecode_index']}{native}")
 
 
+def cl_id_to_string(classloader: int) -> str:
+    if classloader < 0:
+        classloader += 2 << (HASH_NB_BYTES * 8 - 1)
+    return classloader.to_bytes(HASH_NB_BYTES).hex()
+
+
 def handle_classloader_data(data: dict, data_storage: dict):
+    data["id"] = cl_id_to_string(data["id"])
     data_storage["initial_classloaders"].append(data)
 
 
 def handle_invoke_data(data, data_storage: dict):
     method = data["method"]
-    method_cl_id = data["method_cl_id"]
+    method_cl_id = cl_id_to_string(data["method_cl_id"])
     # TODO: good idea?
     if method in [
         "Landroid/view/View;->getTranslationZ()F",
@@ -75,7 +82,7 @@ def handle_invoke_data(data, data_storage: dict):
     if len(data["stack"]) == 0:
         return
     caller_method = data["stack"][0]["method"]
-    caller_cl_id = data["stack"][0]["cl_id"]
+    caller_cl_id = cl_id_to_string(data["stack"][0]["cl_id"])
     addr = data["stack"][0]["bytecode_index"]
     is_static = data["is_static"]
     if is_static:
@@ -106,7 +113,7 @@ def handle_invoke_data(data, data_storage: dict):
 
 def handle_class_new_inst_data(data, data_storage: dict):
     constructor = data["constructor"]
-    constructor_cl_id = data["constructor_cl_id"]
+    constructor_cl_id = cl_id_to_string(data["constructor_cl_id"])
     if len(data["stack"]) == 0:
         return
     if (
@@ -119,7 +126,7 @@ def handle_class_new_inst_data(data, data_storage: dict):
     else:
         return
     caller_method = frame["method"]
-    caller_cl_id = frame["cl_id"]
+    caller_cl_id = cl_id_to_string(frame["cl_id"])
     addr = frame["bytecode_index"]
     print("[+] Class.NewInstance:")
     print(f"    called: [{constructor_cl_id}]{constructor}")
@@ -144,13 +151,13 @@ def handle_class_new_inst_data(data, data_storage: dict):
 
 def handle_cnstr_new_inst_data(data, data_storage: dict):
     constructor = data["constructor"]
-    constructor_cl_id = data["constructor_cl_id"]
+    constructor_cl_id = cl_id_to_string(data["constructor_cl_id"])
     if not constructor.startswith("Lcom/example/theseus"):
         return
     if len(data["stack"]) == 0:
         return
     caller_method = data["stack"][0]["method"]
-    caller_cl_id = data["stack"][0]["cl_id"]
+    caller_cl_id = cl_id_to_string(data["stack"][0]["cl_id"])
     addr = data["stack"][0]["bytecode_index"]
     print("[+] Constructor.newInstance:")
     print(f"    called: [{constructor_cl_id}]{constructor}")
@@ -176,10 +183,7 @@ def handle_cnstr_new_inst_data(data, data_storage: dict):
 def handle_load_dex(data, data_storage: dict, file_storage: Path):
     dex = data["dex"]
     classloader_class = data["classloader_class"]
-    classloader = data["classloader"]
-    if classloader < 0:
-        classloader += 2 << (HASH_NB_BYTES * 8 - 1)
-    classloader = classloader.to_bytes(HASH_NB_BYTES).hex()
+    classloader = cl_id_to_string(data["classloader"])
     short_class = classloader_class.split("/")[-1].removesuffix(";")
     files = []
     print("[+] DEX file loaded:")
@@ -360,7 +364,7 @@ def collect_runtime(apk: Path, device_name: str, file_storage: Path, output: Tex
     for load_data in data_storage["dyn_code_load"]:
         if load_data["classloader"] in cls:
             del cls[load_data["classloader"]]
-    for id_ in cls.keys():
+    for id_ in list(cls.keys()):
         if (
             'dalvik.system.PathClassLoader[DexPathList[[directory "."],'
             in cls[id_]["str"]
