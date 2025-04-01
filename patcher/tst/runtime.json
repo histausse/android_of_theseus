@@ -1,39 +1,63 @@
 {
   "invoke_data": [
     {
-      "method": "Lcom/example/theseus/dynloading/AMain;->getColliderId()Ljava/lang/String;",
-      "caller_method": "Lcom/example/theseus/dynloading/MainActivity;->indirectWithoutParent()V",
-      "addr": 33,
-      "is_static": true
-    },
-    {
-      "method": "Lcom/example/theseus/dynloading/AMain;->getColliderId()Ljava/lang/String;",
-      "caller_method": "Lcom/example/theseus/dynloading/MainActivity;->indirectWithParent()V",
-      "addr": 39,
-      "is_static": true
-    },
-    {
       "method": "Lcom/example/theseus/dynloading/Collider;->getColliderId()Ljava/lang/String;",
-      "caller_method": "Lcom/example/theseus/dynloading/MainActivity;->directWithoutParent()V",
-      "addr": 33,
-      "is_static": true
-    },
-    {
-      "method": "Lcom/example/theseus/dynloading/Collider;->getColliderId()Ljava/lang/String;",
+      "method_cl_id": "0620d2cb",
+      "renamed_method": null,
       "caller_method": "Lcom/example/theseus/dynloading/MainActivity;->directWithParent()V",
+      "caller_cl_id": "0620d2cb",
+      "renamed_caller_method": null,
       "addr": 39,
+      "is_static": true
+    },
+    {
+      "method": "Lcom/example/theseus/dynloading/AMain;->getColliderId()Ljava/lang/String;",
+      "method_cl_id": "012faa7a",
+      "renamed_method": null,
+      "caller_method": "Lcom/example/theseus/dynloading/MainActivity;->indirectWithoutParent()V",
+      "caller_cl_id": "0620d2cb",
+      "renamed_caller_method": null,
+      "addr": 33,
+      "is_static": true
+    },
+    {
+      "method": "Lcom/example/theseus/dynloading/AMain;->getColliderId()Ljava/lang/String;",
+      "method_cl_id": "00a972ce",
+      "renamed_method": null,
+      "caller_method": "Lcom/example/theseus/dynloading/MainActivity;->indirectWithParent()V",
+      "caller_cl_id": "0620d2cb",
+      "renamed_caller_method": null,
+      "addr": 39,
+      "is_static": true
+    },
+    {
+      "method": "Lcom/example/theseus/dynloading/Collider;->getColliderId()Ljava/lang/String;",
+      "method_cl_id": "0354b7e2",
+      "renamed_method": null,
+      "caller_method": "Lcom/example/theseus/dynloading/MainActivity;->directWithoutParent()V",
+      "caller_cl_id": "0620d2cb",
+      "renamed_caller_method": null,
+      "addr": 33,
       "is_static": true
     }
   ],
   "class_new_inst_data": [
     {
       "constructor": "Landroid/app/Application;-><init>()V",
+      "constructor_cl_id": "00aaeddc",
+      "renamed_constructor": null,
       "caller_method": "Landroid/app/AppComponentFactory;->instantiateApplication(Ljava/lang/ClassLoader;Ljava/lang/String;)Landroid/app/Application;",
+      "caller_cl_id": "00aaeddc",
+      "renamed_caller_method": null,
       "addr": 4
     },
     {
       "constructor": "Lcom/example/theseus/dynloading/MainActivity;-><init>()V",
+      "constructor_cl_id": "0620d2cb",
+      "renamed_constructor": null,
       "caller_method": "Landroid/app/AppComponentFactory;->instantiateActivity(Ljava/lang/ClassLoader;Ljava/lang/String;Landroid/content/Intent;)Landroid/app/Activity;",
+      "caller_cl_id": "00aaeddc",
+      "renamed_caller_method": null,
       "addr": 4
     }
   ],
@@ -41,31 +65,104 @@
   "dyn_code_load": [
     {
       "classloader_class": "Ldalvik/system/PathClassLoader;",
-      "classloader": "0dfe1ce0",
+      "classloader": "07069310",
       "files": [
-        "./tst/dex/PathClassLoader_0dfe1ce0_09d17bb5de42d5d9.bytecode"
-      ]
+        "./tst/dex/PathClassLoader_07069310_09d17bb5de42d5d9.bytecode"
+      ],
+      "classloader_parent": "0620d2cb"
     },
     {
       "classloader_class": "Ldalvik/system/PathClassLoader;",
-      "classloader": "0b4ac535",
+      "classloader": "012faa7a",
       "files": [
-        "./tst/dex/PathClassLoader_0b4ac535_09d17bb5de42d5d9.bytecode"
-      ]
+        "./tst/dex/PathClassLoader_012faa7a_09d17bb5de42d5d9.bytecode"
+      ],
+      "classloader_parent": null
     },
     {
       "classloader_class": "Ldalvik/system/PathClassLoader;",
-      "classloader": "0ceee91e",
+      "classloader": "00a972ce",
       "files": [
-        "./tst/dex/PathClassLoader_0ceee91e_09d17bb5de42d5d9.bytecode"
-      ]
+        "./tst/dex/PathClassLoader_00a972ce_09d17bb5de42d5d9.bytecode"
+      ],
+      "classloader_parent": "0620d2cb"
     },
     {
       "classloader_class": "Ldalvik/system/PathClassLoader;",
-      "classloader": "0545b1a9",
+      "classloader": "0354b7e2",
       "files": [
-        "./tst/dex/PathClassLoader_0545b1a9_09d17bb5de42d5d9.bytecode"
-      ]
+        "./tst/dex/PathClassLoader_0354b7e2_09d17bb5de42d5d9.bytecode"
+      ],
+      "classloader_parent": null
     }
-  ]
+  ],
+  "classloaders": [
+    {
+      "id": "0096a9c1",
+      "parent_id": "00aaeddc",
+      "str": "dalvik.system.PathClassLoader[DexPathList[[directory \".\"],nativeLibraryDirectories=[/system/lib64, /system_ext/lib64, /system/lib64, /system_ext/lib64]]]",
+      "cname": "dalvik.system.PathClassLoader"
+    },
+    {
+      "id": "00aaeddc",
+      "parent_id": null,
+      "str": "java.lang.BootClassLoader@aaeddc",
+      "cname": "java.lang.BootClassLoader"
+    },
+    {
+      "id": "0035caa8",
+      "parent_id": null,
+      "str": "dalvik.system.InMemoryDexClassLoader[DexPathList[[dex file \"InMemoryDexFile[cookie=[0, 128037698188144]]\"],nativeLibraryDirectories=[/system/lib64, /system_ext/lib64]]]",
+      "cname": "dalvik.system.InMemoryDexClassLoader"
+    },
+    {
+      "id": "0096a9c1",
+      "parent_id": "00aaeddc",
+      "str": "dalvik.system.PathClassLoader[DexPathList[[directory \".\"],nativeLibraryDirectories=[/system/lib64, /system_ext/lib64, /system/lib64, /system_ext/lib64]]]",
+      "cname": "dalvik.system.PathClassLoader"
+    },
+    {
+      "id": "00aaeddc",
+      "parent_id": null,
+      "str": "java.lang.BootClassLoader@aaeddc",
+      "cname": "java.lang.BootClassLoader"
+    },
+    {
+      "id": "0035caa8",
+      "parent_id": null,
+      "str": "dalvik.system.InMemoryDexClassLoader[DexPathList[[dex file \"InMemoryDexFile[cookie=[0, 128037698188144]]\"],nativeLibraryDirectories=[/system/lib64, /system_ext/lib64]]]",
+      "cname": "dalvik.system.InMemoryDexClassLoader"
+    },
+    {
+      "id": "0620d2cb",
+      "parent_id": "00aaeddc",
+      "str": "dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/~~G73yvcDB8EWWZQoHd7RyMQ==/com.example.theseus.dynloading-9TbLe3e6jrCqYe-MsGwAPA==/base.apk\"],nativeLibraryDirectories=[/data/app/~~G73yvcDB8EWWZQoHd7RyMQ==/com.example.theseus.dynloading-9TbLe3e6jrCqYe-MsGwAPA==/lib/x86_64, /system/lib64, /system_ext/lib64]]]",
+      "cname": "dalvik.system.PathClassLoader"
+    },
+    {
+      "id": "07069310",
+      "parent_id": "0620d2cb",
+      "str": "dalvik.system.PathClassLoader[DexPathList[[dex file \"/data/user/0/com.example.theseus.dynloading/cache/a.dex\"],nativeLibraryDirectories=[/system/lib64, /system_ext/lib64]]]",
+      "cname": "dalvik.system.PathClassLoader"
+    },
+    {
+      "id": "012faa7a",
+      "parent_id": null,
+      "str": "dalvik.system.PathClassLoader[DexPathList[[dex file \"/data/user/0/com.example.theseus.dynloading/cache/a.dex\"],nativeLibraryDirectories=[/system/lib64, /system_ext/lib64]]]",
+      "cname": "dalvik.system.PathClassLoader"
+    },
+    {
+      "id": "00a972ce",
+      "parent_id": "0620d2cb",
+      "str": "dalvik.system.PathClassLoader[DexPathList[[dex file \"/data/user/0/com.example.theseus.dynloading/cache/a.dex\"],nativeLibraryDirectories=[/system/lib64, /system_ext/lib64]]]",
+      "cname": "dalvik.system.PathClassLoader"
+    },
+    {
+      "id": "0354b7e2",
+      "parent_id": null,
+      "str": "dalvik.system.PathClassLoader[DexPathList[[dex file \"/data/user/0/com.example.theseus.dynloading/cache/a.dex\"],nativeLibraryDirectories=[/system/lib64, /system_ext/lib64]]]",
+      "cname": "dalvik.system.PathClassLoader"
+    }
+  ],
+  "apk_cl_id": "0035caa8"
 }

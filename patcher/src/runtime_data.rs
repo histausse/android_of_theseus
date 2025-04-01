@@ -109,7 +109,6 @@ pub struct ReflectionInvokeData {
     pub addr: usize,
     /// If the method is static (static method don't take 'this' as argument)
     pub is_static: bool,
-    // TODO: type of invoke?
 }
 
 impl ReflectionInvokeData {
@@ -183,6 +182,8 @@ pub struct DynamicCodeLoadingData {
     pub classloader_class: IdType,
     /// An identifier for the classloader, valid for one specific run of the application.
     pub classloader: String,
+    /// An identifier for the parent classloader, valid for one specific run of the applications.
+    pub classloader_parent: Option<String>,
     /// The path to the files storing the .dex/.apk/other bytecode loaded.
     pub files: Vec<PathBuf>,
 }

@@ -75,7 +75,7 @@ fn insert_code_model_class_loaders(apk: &mut Apk, runtime_data: &mut RuntimeData
         let classes = apk.list_classes();
         let mut class_loader = ClassLoader {
             id: dyn_data.classloader.clone(),
-            parent: None,
+            parent: dyn_data.classloader_parent.clone(),
             class,
             apk: ApkOrRef::Owned(apk),
             renamed_classes: HashMap::new(),
@@ -283,7 +283,8 @@ impl ClassLoader<'_> {
         tys: &HashSet<IdType>,
         class_loaders: &HashMap<String, Self>,
     ) -> HashMap<IdType, IdType> {
-        tys.iter()
+        let r: HashMap<IdType, IdType> = tys
+            .iter()
             .map(|ty| {
                 (
                     ty.clone(),
@@ -291,7 +292,12 @@ impl ClassLoader<'_> {
                         .unwrap_or(ty.clone()),
                 )
             })
-            .collect()
+            .collect();
+        println!("rename for {}", self.id);
+        for (old, new) in &r {
+            println!("    {} -> {}", old.__str__(), new.__str__());
+        }
+        r
     }
 
     pub fn get_ref_new_name(

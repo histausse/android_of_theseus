@@ -1,3 +1,20 @@
+function dump_classloaders() {
+  Java.perform(() => {
+    const System = Java.use('java.lang.System');
+    var class_loader = Java.enumerateClassLoadersSync();
+    for (var cl of class_loader) {
+      send({"type": "classloader", "data": {
+        "id": System.identityHashCode(cl),
+        "parent_id": System.identityHashCode(cl.getParent()),
+        "str": cl.toString(),
+        "cname": cl.$className
+      }}); 
+    }
+  });
+}
+
+recv('dump-class-loaders', function onMessage(msg) {dump_classloaders()});
+
 Java.perform(() => {
 
   /*
@@ -15,6 +32,18 @@ Java.perform(() => {
   const Base64 = Java.use("android.util.Base64");
   const InMemoryDexClassLoader = Java.use("dalvik.system.InMemoryDexClassLoader");
   const ByteBuffer = Java.use("java.nio.ByteBuffer");
+  const Method = Java.use("java.lang.reflect.Method");
+  const Class = Java.use("java.lang.Class");
+  const Constructor = Java.use("java.lang.reflect.Constructor");
+  const Modifier = Java.use("java.lang.reflect.Modifier");
+  const DexFile = Java.use("dalvik.system.DexFile");
+  const File = Java.use('java.io.File');
+  const Files = Java.use('java.nio.file.Files');
+  const Path = Java.use('java.nio.file.Path');
+  const System = Java.use('java.lang.System');
+  const Arrays = Java.use('java.util.Arrays');
+
+
   const myClassLoader = InMemoryDexClassLoader.$new(
     ByteBuffer.wrap(Base64.decode("<PYTHON REPLACE StackConsumer.dex.b64>", Base64.DEFAULT.value)), 
     null
@@ -80,17 +109,6 @@ Java.perform(() => {
       ")V";
   };
 
-  const Method = Java.use("java.lang.reflect.Method");
-  const Class = Java.use("java.lang.Class");
-  const Constructor = Java.use("java.lang.reflect.Constructor");
-  const Modifier = Java.use("java.lang.reflect.Modifier");
-  const DexFile = Java.use("dalvik.system.DexFile");
-
-  const File = Java.use('java.io.File');
-  const Files = Java.use('java.nio.file.Files');
-  const Path = Java.use('java.nio.file.Path');
-  const System = Java.use('java.lang.System');
-  const Arrays = Java.use('java.util.Arrays');
 
   // ****** Reflexive Method Calls ******
 
@@ -198,6 +216,7 @@ Java.perform(() => {
         "dex": [b64],
         "classloader_class": classloader_class,
         "classloader": classloader_id,
+        "classloader_parent": System.identityHashCode(loader.getParent()),
       }
     });
 
@@ -268,6 +287,7 @@ Java.perform(() => {
         "dex": dex,
         "classloader_class": classloader_class,
         "classloader": classloader_id,
+        "classloader_parent": System.identityHashCode(loader.getParent()),
       }
     });
     return this.openInMemoryDexFilesNative(
@@ -279,22 +299,6 @@ Java.perform(() => {
       elements,
     );
   };
-
-  // Find the main APK class loader:
-  // Not so easy, just send all class loader and sort this out later:
-  var class_loader = Java.enumerateClassLoadersSync();
-  for (var cl of class_loader) {
-    //if (cl.toString().includes("dalvik.system.PathClassLoader[DexPathList[[directory \".\"],")) {
-    //  continue;
-    //}
-    //if (cl.$className == "java.lang.BootClassLoader") {
-    //  continue;
-    //}
-    send({"type": "classloader", "data": {
-      "id": System.identityHashCode(cl), 
-      "str": cl.toString(),
-      "cname": cl.$className
-    }}); 
-  }
 });
 
+recv('dump-class-loaders', function onMessage(msg) {dump_classloaders()});

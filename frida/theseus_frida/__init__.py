@@ -59,7 +59,9 @@ def print_stack(stack, prefix: str):
         print(f"  {prefix}{frame['method']}:{frame['bytecode_index']}{native}")
 
 
-def cl_id_to_string(classloader: int) -> str:
+def cl_id_to_string(classloader: int) -> str | None:
+    if classloader == 0:  # 0 is the hash of java Null
+        return None
     if classloader < 0:
         classloader += 2 << (HASH_NB_BYTES * 8 - 1)
     return classloader.to_bytes(HASH_NB_BYTES).hex()
@@ -67,7 +69,8 @@ def cl_id_to_string(classloader: int) -> str:
 
 def handle_classloader_data(data: dict, data_storage: dict):
     data["id"] = cl_id_to_string(data["id"])
-    data_storage["initial_classloaders"].append(data)
+    data["parent_id"] = cl_id_to_string(data["parent_id"])
+    data_storage["classloaders"].append(data)
 
 
 def handle_invoke_data(data, data_storage: dict):
@@ -184,6 +187,7 @@ def handle_load_dex(data, data_storage: dict, file_storage: Path):
     dex = data["dex"]
     classloader_class = data["classloader_class"]
     classloader = cl_id_to_string(data["classloader"])
+    classloader_parent = cl_id_to_string(data["classloader_parent"])
     short_class = classloader_class.split("/")[-1].removesuffix(";")
     files = []
     print("[+] DEX file loaded:")
@@ -212,6 +216,7 @@ def handle_load_dex(data, data_storage: dict, file_storage: Path):
             "classloader_class": classloader_class,
             "classloader": classloader,
             "files": files,
+            "classloader_parent": classloader_parent,
         }
     )
 
@@ -344,7 +349,7 @@ def collect_runtime(apk: Path, device_name: str, file_storage: Path, output: Tex
         "class_new_inst_data": [],
         "cnstr_new_inst_data": [],
         "dyn_code_load": [],
-        "initial_classloaders": [],
+        "classloaders": [],
     }
 
     script.on(
@@ -357,10 +362,13 @@ def collect_runtime(apk: Path, device_name: str, file_storage: Path, output: Tex
     # Resume the execution of the APK
     device.resume(pid)
 
+    script.post({"type": "dump-class-loaders"})
     print("==> Press ENTER to finish the analysis <==")
     input()
+
+    # Try to find the Main class loader
     main_class_loader: str | None = None
-    cls = {d["id"]: d for d in data_storage["initial_classloaders"]}
+    cls = {d["id"]: d for d in data_storage["classloaders"]}
     for load_data in data_storage["dyn_code_load"]:
         if load_data["classloader"] in cls:
             del cls[load_data["classloader"]]
@@ -392,6 +400,10 @@ def collect_runtime(apk: Path, device_name: str, file_storage: Path, output: Tex
     else:
         main_class_loader = list(cls.keys())[0]
     data_storage["apk_cl_id"] = main_class_loader
+
+    # Dump all known classloaders
+    script.post({"type": "dump-class-loaders"})
+    time.sleep(1)  # TODO: wait for ack from frida
 
     json.dump(data_storage, output, indent="  ")
 
