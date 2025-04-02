@@ -27,6 +27,7 @@ import java.io.FileOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import android.content.Context;
 import dalvik.system.PathClassLoader;
+import dalvik.system.DelegateLastClassLoader;
 import java.lang.reflect.Method;
 
 import com.example.theseus.Utils;
@@ -105,6 +106,22 @@ public class MainActivity extends Activity {
         b4.generateViewId();
         linLayout.addView(b4);
 
+        Button b5 = new Button(this);
+        b5.generateViewId();
+        linLayout.addView(b5);
+
+        Button b6 = new Button(this);
+        b6.generateViewId();
+        linLayout.addView(b6);
+
+        Button b7 = new Button(this);
+        b7.generateViewId();
+        linLayout.addView(b7);
+
+        Button b8 = new Button(this);
+        b8.generateViewId();
+        linLayout.addView(b8);
+
 
         scrollView.addView(linLayout);
         relLayout.addView(scrollView);
@@ -159,7 +176,56 @@ public class MainActivity extends Activity {
                 }
             }
         });
+        b5.setText("Direct DelegateLastClassLoader With Parent");
+        b5.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
+                try {
+                    directWithParentDelegateLast ();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b6.setText("Direct DelegateLastClassLoader Without Parent");
+        b6.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
+                try {
+                    directWithoutParentDelegateLast ();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b7.setText("Indirect DelegateLastClassLoader With Parent");
+        b7.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
+                try {
+                     indirectWithParentDelegateLast ();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
+
+        b8.setText("Indirect DelegateLastClassLoader Without Parent");
+        b8.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
+                try {
+                    indirectWithoutParentDelegateLast ();
+                } catch(Exception e) {
+                    Log.e("THESEUS", "Error: ", e);
+                }
+            }
+        });
     }
+
+    // ------ PATH CLASS LOADER ------
 
     public void directWithParent() {
         try {
@@ -195,7 +261,6 @@ public class MainActivity extends Activity {
             Method mth = clz.getMethod("getColliderId");
             String id = (String)mth.invoke(null);
             //Utils.popup(this, "Result", id);
-            Utils.popup(this, "TEST", clz.descriptorString());
             String expectedId = "A";
             if (id.equals(expectedId)) {
                 Utils.popup(this, "OK", "The right class was loaded: " + id);
@@ -246,6 +311,115 @@ public class MainActivity extends Activity {
     public void indirectWithoutParent() {
         try {
             PathClassLoader cl = new PathClassLoader(getdexfile("a.dex"), null);
+            Class clz = cl.loadClass("com.example.theseus.dynloading.AMain");
+            Method mth = clz.getMethod("getColliderId");
+            String id = (String)mth.invoke(null);
+            //Utils.popup(this, "Result", id);
+            String expectedId = "A";
+            if (id.equals(expectedId)) {
+                Utils.popup(this, "OK", "The right class was loaded: " + id);
+            } else {
+                Utils.popup(this, "BAD", "The wrong class was loaded: id = " + id + " expected id = " + expectedId);
+            }
+        } catch (ClassNotFoundException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (NoSuchMethodException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (IllegalAccessException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (InvocationTargetException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+    }
+
+    // ------ DELEGATE LAST CLASSlOADER ------
+    public void directWithParentDelegateLast() {
+        try {
+            DelegateLastClassLoader cl = new DelegateLastClassLoader(getdexfile("a.dex"), MainActivity.class.getClassLoader());
+            Class clz = cl.loadClass("com.example.theseus.dynloading.Collider");
+            Method mth = clz.getMethod("getColliderId");
+            String id = (String)mth.invoke(null);
+            //Utils.popup(this, "Result", id);
+            String expectedId = "A";
+            if (id.equals(expectedId)) {
+                Utils.popup(this, "OK", "The right class was loaded: " + id);
+            } else {
+                Utils.popup(this, "BAD", "The wrong class was loaded: id = " + id + " expected id = " + expectedId);
+            }
+        } catch (ClassNotFoundException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (NoSuchMethodException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (IllegalAccessException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (InvocationTargetException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+    }
+
+    public void directWithoutParentDelegateLast() {
+        try {
+            DelegateLastClassLoader cl = new DelegateLastClassLoader(getdexfile("a.dex"), null);
+            Class clz = cl.loadClass("com.example.theseus.dynloading.Collider");
+            Method mth = clz.getMethod("getColliderId");
+            String id = (String)mth.invoke(null);
+            //Utils.popup(this, "Result", id);
+            String expectedId = "A";
+            if (id.equals(expectedId)) {
+                Utils.popup(this, "OK", "The right class was loaded: " + id);
+            } else {
+                Utils.popup(this, "BAD", "The wrong class was loaded: id = " + id + " expected id = " + expectedId);
+            }
+        } catch (ClassNotFoundException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (NoSuchMethodException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (IllegalAccessException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (InvocationTargetException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+    }
+
+    public void indirectWithParentDelegateLast() {
+        try {
+            DelegateLastClassLoader cl = new DelegateLastClassLoader(getdexfile("a.dex"), MainActivity.class.getClassLoader());
+            Class clz = cl.loadClass("com.example.theseus.dynloading.AMain");
+            Method mth = clz.getMethod("getColliderId");
+            String id = (String)mth.invoke(null);
+            //Utils.popup(this, "Result", id);
+            String expectedId = "A";
+            if (id.equals(expectedId)) {
+                Utils.popup(this, "OK", "The right class was loaded: " + id);
+            } else {
+                Utils.popup(this, "BAD", "The wrong class was loaded: id = " + id + " expected id = " + expectedId);
+            }
+        } catch (ClassNotFoundException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (NoSuchMethodException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (IllegalAccessException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+        catch (InvocationTargetException e) {
+            Log.e("DEBUG", "ERROR: ", e);
+        }
+    }
+
+    public void indirectWithoutParentDelegateLast() {
+        try {
+            DelegateLastClassLoader cl = new DelegateLastClassLoader(getdexfile("a.dex"), null);
             Class clz = cl.loadClass("com.example.theseus.dynloading.AMain");
             Method mth = clz.getMethod("getColliderId");
             String id = (String)mth.invoke(null);
