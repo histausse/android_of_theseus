@@ -14,6 +14,57 @@ function dump_classloaders() {
   });
 }
 
+function registerStackConsumer() {
+  const Consumer = Java.use('java.util.function.Consumer');
+  const Method = Java.use('java.lang.reflect.Method');
+  const ArrayList = Java.use('java.util.ArrayList');
+  const StackFrame = Java.use('java.lang.StackWalker$StackFrame');
+
+  // Finding r8 optimized method for the Consumer interface
+  let requiredMethods = Consumer.class.getDeclaredMethods();
+  var lambdamethod = '';
+  requiredMethods.forEach(m => {
+    var meth = Java.cast(m, Method);
+    let methodname = meth.getName();
+    if (methodname.startsWith("$r8$lambda$")) {
+      lambdamethod = methodname;
+    };
+  });
+
+  return Java.registerClass({
+    name: "theseus.android.StackConsumer",
+    implements: [Consumer],
+    fields: {
+      stack: 'java.util.ArrayList',
+    },
+    methods: {
+      '<init>': [{
+        returnType: 'void',
+        argumentTypes: [],
+        implementation: function () {
+          this.stack.value = ArrayList.$new();
+        }
+      }],
+      accept(frame) {
+        var castedFrame = Java.cast(frame, StackFrame);
+        this.stack.value.add(castedFrame);
+      },
+      getStack: [{
+        returnType: '[Ljava.lang.StackWalker$StackFrame;',
+        argumentTypes: [],
+        implementation: function () {
+          return this.stack.value.toArray(Java.array('java.lang.StackWalker$StackFrame', []));
+        },
+      }],
+      andThen(cons) {
+        return this.$super.andThen(cons);
+      },
+      lambda$andThen$0(consumer, obj) {},
+      ['_' + lambdamethod]: function (cons1, cons2, obj) {}
+    },
+  });
+}
+
 // recv('dump-class-loaders', function onMessage(msg) {dump_classloaders()});
 
 Java.perform(() => {
@@ -44,12 +95,14 @@ Java.perform(() => {
   const System = Java.use('java.lang.System');
   const Arrays = Java.use('java.util.Arrays');
 
-
+  /*
   const myClassLoader = InMemoryDexClassLoader.$new(
     ByteBuffer.wrap(Base64.decode("<PYTHON REPLACE StackConsumer.dex.b64>", Base64.DEFAULT.value)), 
     null
   );
   const StackConsumer = Java.ClassFactory.get(myClassLoader).use("theseus.android.StackConsumer");
+  */
+  const StackConsumer = registerStackConsumer();
 
   const get_stack = function () {
     // console.log(Java.use("android.util.Log").getStackTraceString(Java.use("java.lang.Exception").$new()));

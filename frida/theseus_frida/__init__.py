@@ -330,11 +330,6 @@ def collect_runtime(apk: Path, device_name: str, file_storage: Path, output: Tex
 
     with FRIDA_SCRIPT.open("r") as file:
         jsscript = file.read()
-    with STACK_CONSUMER_B64.open("r") as file:
-        jsscript = jsscript.replace(
-            "<PYTHON REPLACE StackConsumer.dex.b64>",
-            file.read().replace("\n", "").strip(),
-        )
 
     pid = device.spawn([app])
     session = device.attach(pid)
