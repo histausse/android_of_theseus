@@ -5,13 +5,8 @@ use androscalpel::{Apk, DexString, IdType, VisitorMut};
 use anyhow::{Context, Result};
 use clap::ValueEnum;
 
+use crate::dex_types::DELEGATE_LAST_CLASS_LOADER;
 use crate::runtime_data::RuntimeData;
-
-// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-//
-// INSERT EMPTY CLASS LOADERS WHEN ID REFERS TO UNKNOWN CLASS LOADER
-//
-// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 
 #[derive(ValueEnum, Debug, PartialEq, Clone, Copy, Default)]
 pub enum CodePatchingStrategy {
@@ -70,7 +65,10 @@ fn insert_code_model_class_loaders(apk: &mut Apk, runtime_data: &mut RuntimeData
             apk.add_code(file, crate::labeling, false)?;
         }
 
-        assert!(!class_loaders.contains_key(&dyn_data.classloader));
+        assert!(
+            !class_loaders.contains_key(&dyn_data.classloader),
+            "The same class loader should not appear twice in runtime_data.dyn_code_load"
+        );
 
         let classes = apk.list_classes();
         let mut class_loader = ClassLoader {
@@ -305,7 +303,14 @@ impl ClassLoader<'_> {
         ty: &IdType,
         class_loaders: &HashMap<String, Self>,
     ) -> Option<IdType> {
-        // TODO: Implemente different class loader behaviors
+        // TODO: Check Platform Classes
+        if self.class == *DELEGATE_LAST_CLASS_LOADER {
+            if let Some(new_ty) = self.renamed_classes.get(ty) {
+                return Some(new_ty.clone());
+            } else if self.apk().get_class(ty).is_some() {
+                return Some(ty.clone());
+            }
+        }
         if let Some(ref parent_id) = self.parent {
             if let Some(parent) = class_loaders.get(parent_id) {
                 if let Some(new_ty) = parent.get_ref_new_name(ty, class_loaders) {
@@ -314,6 +319,9 @@ impl ClassLoader<'_> {
             } else {
                 log::warn!("Class Loader {}({}) has parent {}, but parent was not found in class loader list", self.id, self.class.__str__(), parent_id);
             }
+        }
+        if self.class == *DELEGATE_LAST_CLASS_LOADER {
+            return None;
         }
         if let Some(new_ty) = self.renamed_classes.get(ty) {
             Some(new_ty.clone())

@@ -102,6 +102,8 @@ pub(crate) static SCAL_TO_OBJ_DOUBLE: LazyLock<IdMethod> = LazyLock::new(|| {
 
 pub(crate) static OBJECT_TY: LazyLock<IdType> =
     LazyLock::new(|| IdType::from_smali("Ljava/lang/Object;").unwrap());
+pub(crate) static DELEGATE_LAST_CLASS_LOADER: LazyLock<IdType> =
+    LazyLock::new(|| IdType::from_smali("Ldalvik/system/DelegateLastClassLoader;").unwrap());
 
 /// Get the method that convert a object to its scalar conterpart (eg `java.lang.Integer` to `int` with
 /// `Ljava/lang/Integer;->intValue()I`)
