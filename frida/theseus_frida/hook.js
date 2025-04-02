@@ -10,10 +10,11 @@ function dump_classloaders() {
         "cname": cl.$className
       }}); 
     }
+    send({"type": "classloader-done"})
   });
 }
 
-recv('dump-class-loaders', function onMessage(msg) {dump_classloaders()});
+// recv('dump-class-loaders', function onMessage(msg) {dump_classloaders()});
 
 Java.perform(() => {
 
