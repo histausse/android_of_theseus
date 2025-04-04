@@ -234,7 +234,7 @@ FRIDA_SERVER_BIN = Path(__file__).parent / "frida-server-16.7.0-android-x86_64.x
 FRIDA_SERVER_ANDROID_PATH = "/data/local/tmp/frida-server"
 
 
-def setup_frida(device_name: str, env: dict[str, str]) -> frida.core.Device:
+def setup_frida(device_name: str, env: dict[str, str], adb: str) -> frida.core.Device:
     if device_name != "":
         device = frida.get_device(device_name)
         env["ANDROID_SERIAL"] = device_name
@@ -250,21 +250,21 @@ def setup_frida(device_name: str, env: dict[str, str]) -> frida.core.Device:
     # Start server
     proc: subprocess.CompletedProcess[str] | subprocess.CompletedProcess[bytes] = (
         subprocess.run(
-            ["adb", "shell", "whoami"],
+            [adb, "shell", "whoami"],
             encoding="utf-8",
             stdout=subprocess.PIPE,
             env=env,
         )
     )
     if proc.stdout.strip() != "root":
-        proc = subprocess.run(["adb", "root"], env=env)
+        proc = subprocess.run([adb, "root"], env=env)
         # Rooting adb will disconnect the device
         if device_name != "":
             device = frida.get_device(device_name)
         else:
             device = frida.get_usb_device()
     perm = subprocess.run(
-        ["adb", "shell", "stat", "-c", "%a", FRIDA_SERVER_ANDROID_PATH],
+        [adb, "shell", "stat", "-c", "%a", FRIDA_SERVER_ANDROID_PATH],
         encoding="utf-8",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -287,7 +287,7 @@ def setup_frida(device_name: str, env: dict[str, str]) -> frida.core.Device:
 
             subprocess.run(
                 [
-                    "adb",
+                    adb,
                     "push",
                     str((tmpd / "frida-server").absolute()),
                     FRIDA_SERVER_ANDROID_PATH,
@@ -296,9 +296,9 @@ def setup_frida(device_name: str, env: dict[str, str]) -> frida.core.Device:
             )
     if need_perm_resset:
         subprocess.run(
-            ["adb", "shell", "chmod", "755", FRIDA_SERVER_ANDROID_PATH], env=env
+            [adb, "shell", "chmod", "755", FRIDA_SERVER_ANDROID_PATH], env=env
         )
-    subprocess.Popen(["adb", "shell", FRIDA_SERVER_ANDROID_PATH], env=env)
+    subprocess.Popen([adb, "shell", FRIDA_SERVER_ANDROID_PATH], env=env)
     # The server take some time to start
     # time.sleep(3)
     t = spinner()
@@ -313,8 +313,24 @@ def setup_frida(device_name: str, env: dict[str, str]) -> frida.core.Device:
             time.sleep(0.3)
 
 
-def collect_runtime(apk: Path, device_name: str, file_storage: Path, output: TextIO):
+def collect_runtime(
+    apk: Path,
+    device_name: str,
+    file_storage: Path,
+    output: TextIO,
+    adb_path: Path | None = None,
+    android_sdk_path: Path | None = None,
+):
     env = dict(os.environ)
+
+    if adb_path is not None:
+        adb = str(adb_path)
+    elif adb_path is None and android_sdk_path is None:
+        adb = "adb"
+    elif not (android_sdk_path / "platform-tools" / "adb").exists():
+        adb = "adb"
+    else:
+        adb = str(android_sdk_path / "platform-tools" / "adb")
 
     if not file_storage.exists():
         file_storage.mkdir(parents=True)
@@ -322,14 +338,14 @@ def collect_runtime(apk: Path, device_name: str, file_storage: Path, output: Tex
         print("[!] file_storage must be a directory")
         exit()
 
-    device = setup_frida(device_name, env)
+    device = setup_frida(device_name, env, adb)
 
     app = get_apkid(apk)[0]
 
     if device.enumerate_applications([app]):
         # Uninstall the APK if it already exist
-        subprocess.run(["adb", "uninstall", app], env=env)
-    subprocess.run(["adb", "install", str(apk.absolute())], env=env)
+        subprocess.run([adb, "uninstall", app], env=env)
+    subprocess.run([adb, "install", str(apk.absolute())], env=env)
 
     with FRIDA_SCRIPT.open("r") as file:
         jsscript = file.read()
@@ -380,7 +396,7 @@ def collect_runtime(apk: Path, device_name: str, file_storage: Path, output: Tex
     #     time.sleep(0.3)
     # print(f"[*] Classloader list received" + " " * 20)
 
-    explore_app()
+    explore_app(app, device=device.id, android_sdk=android_sdk_path)
 
     # Try to find the Main class loader
     main_class_loader: str | None = None

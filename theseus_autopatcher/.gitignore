@@ -1,2 +1,2 @@
-# Created by venv; see https://docs.python.org/3/library/venv.html
-*
+dist/
+src/theseus_autopatcher/patcher_86_64_musl
