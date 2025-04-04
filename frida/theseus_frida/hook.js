@@ -1,14 +1,26 @@
+const sended_class_loaders = new Set();
+
+function send_class_loader(cl) {
+  const System = Java.use('java.lang.System');
+  let cl_id = System.identityHashCode(cl);
+  while (cl != null && !sended_class_loaders.has(cl_id)) {
+    let parent_ = cl.getParent();
+    send({"type": "classloader", "data": {
+      "id": cl_id,
+      "parent_id": System.identityHashCode(parent_),
+      "str": cl.toString(),
+      "cname": cl.$className
+    }});
+    sended_class_loaders.add(cl_id);
+    cl = parent_;
+  }
+}
+
 function dump_classloaders() {
   Java.perform(() => {
-    const System = Java.use('java.lang.System');
     var class_loader = Java.enumerateClassLoadersSync();
     for (var cl of class_loader) {
-      send({"type": "classloader", "data": {
-        "id": System.identityHashCode(cl),
-        "parent_id": System.identityHashCode(cl.getParent()),
-        "str": cl.toString(),
-        "cname": cl.$className
-      }}); 
+      send_class_loader(cl);
     }
     send({"type": "classloader-done"})
   });
@@ -125,11 +137,13 @@ Java.perform(() => {
     var stack = stackConsumer.getStack()
     //send({"type": "stack", "data": stackConsumer.getStack()});
     return stack.map((frame) => {
+      let cl = frame.getDeclaringClass().getClassLoader();
+      send_class_loader(cl);
       return {
         "bytecode_index": frame.getByteCodeIndex(),
         "is_native": frame.isNativeMethod(),
 	"method": frame.getDeclaringClass().descriptorString() + "->" +  frame.getMethodName() + frame.getDescriptor(),
-        "cl_id": System.identityHashCode(frame.getDeclaringClass().getClassLoader()),
+        "cl_id": System.identityHashCode(cl),
 	//{
           //"descriptor": frame.getDescriptor(),
           //"name": frame.getMethodName(),
@@ -170,11 +184,13 @@ Java.perform(() => {
   Method.invoke.overload(
     "java.lang.Object", "[Ljava.lang.Object;" // the Frida type parser is so cursted...
   ).implementation = function (obj, args) {
+    let cl = this.getDeclaringClass().getClassLoader();
+    send_class_loader(cl);
     send({
       "type": "invoke", 
 	"data": {
           "method": get_method_dsc(this),
-          "method_cl_id": System.identityHashCode(this.getDeclaringClass().getClassLoader()),
+          "method_cl_id": System.identityHashCode(cl),
 	  /*{
             "name": this.getName(),
             "class": this.getDeclaringClass().getName(),
@@ -193,11 +209,13 @@ Java.perform(() => {
   // Class.newInstance()
   Class.newInstance.overload(
   ).implementation = function () {
+    let cl = this.getClassLoader();
+    send_class_loader(cl);
     send({
       "type": "class-new-inst", 
 	"data": {
           "constructor": this.descriptorString() + "-><init>()V",
-          "constructor_cl_id": System.identityHashCode(this.getClassLoader()),
+          "constructor_cl_id": System.identityHashCode(cl),
 	  /*{
             "name": "<init>",
             "class": this.getName(),
@@ -215,11 +233,13 @@ Java.perform(() => {
   Constructor.newInstance.overload(
     "[Ljava.lang.Object;"
   ).implementation = function (args) {
+    let cl = this.getDeclaringClass().getClassLoader();
+    send_class_loader(cl);
     send({
       "type": "cnstr-new-isnt", 
 	"data": {
           "constructor": get_constr_dsc(this),
-          "constructor_cl_id": System.identityHashCode(this.getDeclaringClass().getClassLoader()),
+          "constructor_cl_id": System.identityHashCode(cl),
 	  /*
 	  {
             "name": "<init>",
@@ -262,6 +282,7 @@ Java.perform(() => {
     let classloader_class = null;
     let classloader_id = System.identityHashCode(loader);
     if (loader !== null) {
+      send_class_loader(loader);
       classloader_class = loader.getClass().descriptorString();
     }
     send({
@@ -334,6 +355,7 @@ Java.perform(() => {
     let classloader_id = System.identityHashCode(loader);
     if (loader !== null) {
       classloader_class = loader.getClass().descriptorString();
+      send_class_loader(loader);
     }
     send({
       "type": "load-dex",

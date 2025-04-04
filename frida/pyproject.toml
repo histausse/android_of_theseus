@@ -3,7 +3,7 @@ name = "theseus-frida"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Jean-Marie Mineau",email = "jean-marie.mineau@inria.fr"}
+    {name = "Jean-Marie Mineau",email = "jean-marie.mineau@centralesupelec.fr"}
 ]
 readme = "README.md"
 requires-python = ">=3.13,<4.0.0"

@@ -12,6 +12,8 @@ import lzma
 from pathlib import Path
 from typing import TextIO, Any
 
+from .app_exploration import explore_app
+
 import frida  # type: ignore
 from androguard.core.apk import get_apkid  # type: ignore
 from loguru import logger  # type: ignore
@@ -76,6 +78,7 @@ def cl_id_to_string(classloader: int) -> str | None:
 def handle_classloader_data(data: dict, data_storage: dict):
     data["id"] = cl_id_to_string(data["id"])
     data["parent_id"] = cl_id_to_string(data["parent_id"])
+    print(f"[+] Got classloader {data['id']}({data['str']})")
     data_storage["classloaders"].append(data)
 
 
@@ -363,21 +366,21 @@ def collect_runtime(apk: Path, device_name: str, file_storage: Path, output: Tex
     # Resume the execution of the APK
     device.resume(pid)
 
-    print("==> Press ENTER to end the analysis <==")
-    input()
-
     # Dump all known classloaders
-    global CLASSLOADER_DONE
-    CLASSLOADER_DONE = False
+    # Don't wait for confirmation that all cl were sended
+    # global CLASSLOADER_DONE
+    # CLASSLOADER_DONE = False
     script.post({"type": "dump-class-loaders"})
-    t = spinner()
-    while not CLASSLOADER_DONE:
-        print(
-            f"[{t.__next__()}] Waiting for the list of classloaders to be sent",
-            end="\r",
-        )
-        time.sleep(0.3)
-    print(f"[*] Classloader list received" + " " * 20)
+    # t = spinner()
+    # while not CLASSLOADER_DONE:
+    #     print(
+    #         f"[{t.__next__()}] Waiting for the list of classloaders to be sent",
+    #         end="\r",
+    #     )
+    #     time.sleep(0.3)
+    # print(f"[*] Classloader list received" + " " * 20)
+
+    explore_app()
 
     # Try to find the Main class loader
     main_class_loader: str | None = None

@@ -3,7 +3,7 @@ name = "theseus-autopatcher"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Jean-Marie 'Histausse' Mineau",email = "histausse@protonmail.com"}
+    {name = "Jean-Marie MINEAU",email = "jean-marie.mineau@centralesupelec.fr"}
 ]
 readme = "README.md"
 requires-python = ">=3.13,<4.0.0"
