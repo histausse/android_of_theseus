@@ -39,12 +39,12 @@ function registerStackConsumer() {
     var meth = Java.cast(m, Method);
     let methodname = meth.getName();
     if (methodname.startsWith("$r8$lambda$")) {
-      lambdamethod = methodname;
+      lambdamethod = '_' + methodname;
     };
   });
 
-  return Java.registerClass({
-    name: "theseus.android.StackConsumer",
+  let spec = {
+    name: "TheseusAndroidStackConsumer",
     implements: [Consumer],
     fields: {
       stack: 'java.util.ArrayList',
@@ -57,24 +57,39 @@ function registerStackConsumer() {
           this.stack.value = ArrayList.$new();
         }
       }],
-      accept(frame) {
+      'accept': function (frame) {
         var castedFrame = Java.cast(frame, StackFrame);
         this.stack.value.add(castedFrame);
       },
-      getStack: [{
+      'getStack': [{
         returnType: '[Ljava.lang.StackWalker$StackFrame;',
         argumentTypes: [],
         implementation: function () {
           return this.stack.value.toArray(Java.array('java.lang.StackWalker$StackFrame', []));
         },
       }],
-      andThen(cons) {
-        return this.$super.andThen(cons);
-      },
-      lambda$andThen$0(consumer, obj) {},
-      ['_' + lambdamethod]: function (cons1, cons2, obj) {}
+      "andThen": [{
+        returnType: 'java.util.function.Consumer',
+        argumentTypes: ['java.util.function.Consumer'],
+        implementation: function (cons) {
+          return this.$super.andThen(cons);
+        },
+      }],
+      "lambda$andThen$0": [{
+        returnType: 'void',
+        argumentTypes: ['java.util.function.Consumer', 'java.lang.Object'],
+        implementation: function (consumer, obj) {},
+      }],
+      [lambdamethod]: [{
+        returnType: 'void',
+        argumentTypes: ['java.util.function.Consumer', 'java.util.function.Consumer', 'java.lang.Object'],
+        implementation: function (cons1, cons2, obj) {}
+      }]
     },
-  });
+  };
+
+  console.log(Object.keys(spec.methods));
+  return Java.registerClass(spec);
 }
 
 // recv('dump-class-loaders', function onMessage(msg) {dump_classloaders()});
@@ -375,6 +390,7 @@ Java.perform(() => {
       elements,
     );
   };
+  dump_classloaders();
 });
 
-recv('dump-class-loaders', function onMessage(msg) {dump_classloaders()});
+//recv('dump-class-loaders', function onMessage(msg) {dump_classloaders()});

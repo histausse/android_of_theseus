@@ -8,7 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13,<4.0.0"
 dependencies = [
-    "frida (==16.7.0)",
+    "frida (==16.7.4)",
     "frida-tools (>=13.6.1,<14.0.0)",
     "androguard (>=4.1.2,<5.0.0)"
 ]

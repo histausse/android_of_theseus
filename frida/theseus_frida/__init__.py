@@ -21,7 +21,9 @@ from loguru import logger  # type: ignore
 logger.remove()  # remove androguard logs
 
 FRIDA_SCRIPT = Path(__file__).parent / "hook.js"
-STACK_CONSUMER_B64 = Path(__file__).parent / "StackConsumer.dex.b64"
+FRIDA_SERVER_BIN = Path(__file__).parent / "frida-server-16.7.4-android-x86_64.xz"
+FRIDA_SERVER_ANDROID_PATH = "/data/local/tmp/frida-server"
+
 
 # The number of bytes used to encode a java hash (from Object.hashCode or System.identiyHashCode)
 # The type is 'int', so it sould be a 32bit signed value?
@@ -230,10 +232,6 @@ def handle_load_dex(data, data_storage: dict, file_storage: Path):
     )
 
 
-FRIDA_SERVER_BIN = Path(__file__).parent / "frida-server-16.7.0-android-x86_64.xz"
-FRIDA_SERVER_ANDROID_PATH = "/data/local/tmp/frida-server"
-
-
 def setup_frida(device_name: str, env: dict[str, str], adb: str) -> frida.core.Device:
     if device_name != "":
         device = frida.get_device(device_name)
@@ -386,7 +384,7 @@ def collect_runtime(
     # Don't wait for confirmation that all cl were sended
     # global CLASSLOADER_DONE
     # CLASSLOADER_DONE = False
-    script.post({"type": "dump-class-loaders"})
+    # script.post({"type": "dump-class-loaders"})
     # t = spinner()
     # while not CLASSLOADER_DONE:
     #     print(
