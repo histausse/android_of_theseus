@@ -21,6 +21,7 @@ from loguru import logger  # type: ignore
 logger.remove()  # remove androguard logs
 
 FRIDA_SCRIPT = Path(__file__).parent / "hook.js"
+STACK_CONSUMER_B64 = Path(__file__).parent / "StackConsumer.dex.b64"
 FRIDA_SERVER_BIN = Path(__file__).parent / "frida-server-16.7.4-android-x86_64.xz"
 FRIDA_SERVER_ANDROID_PATH = "/data/local/tmp/frida-server"
 
@@ -347,6 +348,11 @@ def collect_runtime(
 
     with FRIDA_SCRIPT.open("r") as file:
         jsscript = file.read()
+    with STACK_CONSUMER_B64.open("r") as file:
+        jsscript = jsscript.replace(
+            "<PYTHON REPLACE StackConsumer.dex.b64>",
+            file.read().replace("\n", "").strip(),
+        )
 
     pid = device.spawn([app])
     session = device.attach(pid)

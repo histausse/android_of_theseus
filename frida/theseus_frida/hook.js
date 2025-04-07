@@ -26,6 +26,8 @@ function dump_classloaders() {
   });
 }
 
+/* ----- Frida Native Class Loading -----
+ * Broken, for some ineffable frida-android reason.
 function registerStackConsumer() {
   const Consumer = Java.use('java.util.function.Consumer');
   const Method = Java.use('java.lang.reflect.Method');
@@ -91,6 +93,19 @@ function registerStackConsumer() {
   console.log(Object.keys(spec.methods));
   return Java.registerClass(spec);
 }
+*/
+
+// ----- InMemoryDexClassLoader class loading -----
+function registerStackConsumer() {
+  const InMemoryDexClassLoader = Java.use("dalvik.system.InMemoryDexClassLoader");
+  const ByteBuffer = Java.use("java.nio.ByteBuffer");
+  const Base64 = Java.use("android.util.Base64");
+  let myClassLoader = InMemoryDexClassLoader.$new(
+    ByteBuffer.wrap(Base64.decode("<PYTHON REPLACE StackConsumer.dex.b64>", Base64.DEFAULT.value)),
+    null,
+  );
+  return Java.ClassFactory.get(myClassLoader).use("theseus.android.StackConsumer");
+}
 
 // recv('dump-class-loaders', function onMessage(msg) {dump_classloaders()});
 
@@ -108,9 +123,8 @@ Java.perform(() => {
   const StackWalkerOptionsShowReflect = StackWalkerOptions.valueOf("SHOW_REFLECT_FRAMES");
   const StackWalkerOptionsRetainClassReference = StackWalkerOptions.valueOf("RETAIN_CLASS_REFERENCE");
   const StackFrame = Java.use('java.lang.StackWalker$StackFrame');
-  const Base64 = Java.use("android.util.Base64");
-  const InMemoryDexClassLoader = Java.use("dalvik.system.InMemoryDexClassLoader");
   const ByteBuffer = Java.use("java.nio.ByteBuffer");
+  const Base64 = Java.use("android.util.Base64");
   const Method = Java.use("java.lang.reflect.Method");
   const Class = Java.use("java.lang.Class");
   const Constructor = Java.use("java.lang.reflect.Constructor");
@@ -122,13 +136,6 @@ Java.perform(() => {
   const System = Java.use('java.lang.System');
   const Arrays = Java.use('java.util.Arrays');
 
-  /*
-  const myClassLoader = InMemoryDexClassLoader.$new(
-    ByteBuffer.wrap(Base64.decode("<PYTHON REPLACE StackConsumer.dex.b64>", Base64.DEFAULT.value)), 
-    null
-  );
-  const StackConsumer = Java.ClassFactory.get(myClassLoader).use("theseus.android.StackConsumer");
-  */
   const StackConsumer = registerStackConsumer();
 
   const get_stack = function () {
