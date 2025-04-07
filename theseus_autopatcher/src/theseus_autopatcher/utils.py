@@ -66,7 +66,7 @@ def get_keytool_path() -> Path | None:
         return None
 
 
-def gen_keystore(keytool: Path, storepath: Path):
+def gen_keystore(keytool: Path, storepath: Path, keypass: str):
     print(f"{str(storepath)} does not exist, creating it.")
     subprocess.run(
         [
@@ -78,6 +78,10 @@ def gen_keystore(keytool: Path, storepath: Path):
             "CN=SomeKey,O=SomeOne,C=FR",
             "-keystore",
             str(storepath),
+            "-storepass",
+            keypass,
+            "-keypass",
+            keypass,
             "-alias",
             "SignKey",
             "-keyalg",

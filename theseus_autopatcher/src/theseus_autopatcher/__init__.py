@@ -19,7 +19,12 @@ def patch_apk(
     zipalign: Path,
     apksigner: Path,
     keystore: Path,
+    keypass: None | str = None,
 ):
+    optional_args = []
+    if keypass is not None:
+        optional_args.append("--keypassword")
+        optional_args.append(keypass)
     subprocess.run(
         [
             str(PATCHER_BIN_PATH.absolute()),
@@ -37,6 +42,7 @@ def patch_apk(
             str(apksigner.absolute()),
             "--code-loading-patch-strategy",
             "model-class-loaders",
+            *optional_args,
         ]
     )
 
@@ -81,6 +87,13 @@ def main():
         default=Path(".") / "TheseusKey.keystore",
     )
     parser.add_argument(
+        "-kp",
+        "--keypass",
+        required=False,
+        help="Password for the key in the keystore",
+        type=str,
+    )
+    parser.add_argument(
         "--keytool",
         required=False,
         help="Path to the keytool executable to use",
@@ -90,7 +103,7 @@ def main():
         "--patch",
         required=False,
         help="Path to the patcher executable to use. By default, use the one embeded with \
-            the package. (static x86_64 linux build with musl)",
+            the package. (static x86_64 linux build with musl optimized for binary size instead of speed)",
         type=Path,
     )
     args = parser.parse_args()
@@ -131,7 +144,9 @@ def main():
         exit(1)
 
     if not args.keystore.exists():
-        gen_keystore(keytool, args.keystore)
+        if args.keypass is None:
+            args.keypass = "P@ssw0rd!"
+        gen_keystore(keytool, args.keystore, args.keypass)
 
     with tempfile.TemporaryDirectory() as tmpdname:
         tmpd = Path(tmpdname)
@@ -151,4 +166,5 @@ def main():
             zipalign=zipalign,
             apksigner=apksigner,
             keystore=args.keystore,
+            keypass=args.keypass,
         )

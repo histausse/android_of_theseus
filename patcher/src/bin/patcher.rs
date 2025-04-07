@@ -21,6 +21,8 @@ struct Cli {
     out: PathBuf,
     #[arg(short, long)]
     keystore: PathBuf,
+    #[arg(long)]
+    keypassword: Option<String>,
     #[arg(short, long)]
     zipalign: Option<PathBuf>,
     #[arg(short, long)]
@@ -84,6 +86,9 @@ fn main() {
         i += 1;
     }
     // TODO: aapt would be a lot more stable?
+    println!("\n\n\n\n\n\n\n");
+    println!("### /!\\ {:?}", cli.keypassword.as_deref());
+    println!("\n\n\n\n\n\n\n");
     apk_frauder::replace_dex(
         cli.path,
         cli.out,
@@ -91,6 +96,7 @@ fn main() {
         cli.keystore,
         cli.zipalign,
         cli.apksigner,
+        cli.keypassword.as_deref(),
         None::<HashMap<_, Option<Cursor<&[u8]>>>>,
     );
 }
