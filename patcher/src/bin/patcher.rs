@@ -86,9 +86,6 @@ fn main() {
         i += 1;
     }
     // TODO: aapt would be a lot more stable?
-    println!("\n\n\n\n\n\n\n");
-    println!("### /!\\ {:?}", cli.keypassword.as_deref());
-    println!("\n\n\n\n\n\n\n");
     apk_frauder::replace_dex(
         cli.path,
         cli.out,
