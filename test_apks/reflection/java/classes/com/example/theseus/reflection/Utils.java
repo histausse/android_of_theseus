@@ -2,8 +2,10 @@ package com.example.theseus;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.util.Log;
 import com.example.theseus.reflection.Reflectee;
 import com.example.theseus.reflection.ChildReflectee;
+import android.util.Log;
 
 
 public class Utils {
@@ -15,6 +17,7 @@ public class Utils {
     }
 
     public static void popup(Activity ac, String title, String msg) {
+        Log.e("THESEUS", "POPUP, title: " + title + ", msg: " + msg);
         (new AlertDialog.Builder(ac))
             .setMessage(msg)
             .setTitle(title)
