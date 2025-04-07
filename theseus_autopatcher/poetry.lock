@@ -220,6 +220,7 @@ description = "Colored terminal output for Python's logging module"
 optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 groups = ["main"]
+markers = "extra == \"grodd\""
 files = [
     {file = "coloredlogs-15.0.1-py2.py3-none-any.whl", hash = "sha256:612ee75c546f53e92e70049c9dbfcc18c935a2b9a53b66085ce9ef6a6e5c0934"},
     {file = "coloredlogs-15.0.1.tar.gz", hash = "sha256:7c991aa71a4577af2f82600d8f8f3a89f936baeaf9b50a9c197da014e5bf16b0"},
@@ -502,25 +503,25 @@ woff = ["brotli (>=1.0.1)", "brotlicffi (>=0.8.0)", "zopfli (>=0.1.4)"]
 
 [[package]]
 name = "frida"
-version = "16.7.0"
+version = "16.7.4"
 description = "Dynamic instrumentation toolkit for developers, reverse-engineers, and security researchers"
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
-    {file = "frida-16.7.0-cp37-abi3-macosx_10_13_x86_64.whl", hash = "sha256:5f89f5a0143b5c0ed6e9ea6357ab0a948cf9ff4da650c3a14b7d49b26ff67eae"},
-    {file = "frida-16.7.0-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:459fe6f876e075c1a0a7d3f5f577207f2531f24700eed6cb3c4494b1089f9629"},
-    {file = "frida-16.7.0-cp37-abi3-manylinux1_i686.whl", hash = "sha256:e85c5112d866b412b7ad079b5f2cf8869187a535f35bcfafdf59f25b6a4f2df9"},
-    {file = "frida-16.7.0-cp37-abi3-manylinux1_x86_64.whl", hash = "sha256:d28437747f9bb2624be4c97ffc15912ff5c3d0279227ad1024e20485525c49fd"},
-    {file = "frida-16.7.0-cp37-abi3-manylinux2014_aarch64.whl", hash = "sha256:d65656ab3f393ecacb491f15284db962ce35875a5dba3dc658c4715de886949d"},
-    {file = "frida-16.7.0-cp37-abi3-manylinux2014_armv7l.whl", hash = "sha256:415afa2435c530fb416c156edeb870340809a54e6fd21b0e49c7e3e440377cde"},
-    {file = "frida-16.7.0-cp37-abi3-manylinux_2_17_aarch64.whl", hash = "sha256:d854158411644e620a915209adff5cb0291ab42704f0abecdb9807132ec8c2dc"},
-    {file = "frida-16.7.0-cp37-abi3-manylinux_2_17_armv7l.whl", hash = "sha256:42e46321de58faaf2bd2b23faddbd33133d02f73c9d946ce87bbdb66aa831e83"},
-    {file = "frida-16.7.0-cp37-abi3-manylinux_2_5_i686.whl", hash = "sha256:2674f36a5ef9218e116e5a92eb37fd444f31b7db3f9d3615ac17c8ab21ba8281"},
-    {file = "frida-16.7.0-cp37-abi3-manylinux_2_5_x86_64.whl", hash = "sha256:fdc3b59a2ad452b1fb52a4c651cef1140ce9facbd09ba6ff411aa2122d1424a1"},
-    {file = "frida-16.7.0-cp37-abi3-win32.whl", hash = "sha256:c3ed99c47752a3c945cbaac71b662199eb5d0dc9fc9d0ba0e7b932896e35e946"},
-    {file = "frida-16.7.0-cp37-abi3-win_amd64.whl", hash = "sha256:735ab69be575e3c9cfd7e3af2daa52423ea1636073bc28657414c8bc2cefba09"},
-    {file = "frida-16.7.0.tar.gz", hash = "sha256:2ffa6ee671ba17ba51ad347b451d6f5ad392d86dc0d008741cac93a8ec278f7f"},
+    {file = "frida-16.7.4-cp37-abi3-macosx_10_13_x86_64.whl", hash = "sha256:1e76ee85728ec4f72d26969d54acf9dbfc74d26a22d3596a207a1beacc88d621"},
+    {file = "frida-16.7.4-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:57688c32e46d83cf4e3ba441dc568d805dff72145b1f55f70fa042497c6fd5fb"},
+    {file = "frida-16.7.4-cp37-abi3-manylinux1_i686.whl", hash = "sha256:12e482a0650c8e5a9c8b60d38139bd9a9b244203654754824f1f61e3c4ba8f25"},
+    {file = "frida-16.7.4-cp37-abi3-manylinux1_x86_64.whl", hash = "sha256:eeb723e8ebdfc4be4ce6597f925fe44cc6115088ca59fc712c8ca893c4535df3"},
+    {file = "frida-16.7.4-cp37-abi3-manylinux2014_aarch64.whl", hash = "sha256:1d29fd770eb255c2a9fffa420f6c79500bd91dba4eb86d4bf6a6985950903906"},
+    {file = "frida-16.7.4-cp37-abi3-manylinux2014_armv7l.whl", hash = "sha256:fbd7334d7cccaa7104a16475b3fafb683c2a84e5a9e170e059e2551e498cac18"},
+    {file = "frida-16.7.4-cp37-abi3-manylinux_2_17_aarch64.whl", hash = "sha256:cdb03da49d9905b79ad25435b111f8e0b2e4861deaaafbd2d4b8bb48767e9dc4"},
+    {file = "frida-16.7.4-cp37-abi3-manylinux_2_17_armv7l.whl", hash = "sha256:5e9905a440d81d5da25f33fa2e91baf4f863e26acafe5c6d411a13622aa63bee"},
+    {file = "frida-16.7.4-cp37-abi3-manylinux_2_5_i686.whl", hash = "sha256:96b4a58c04b796f800bf3bf5f9605a472341b948427ec86b602c753afc426f62"},
+    {file = "frida-16.7.4-cp37-abi3-manylinux_2_5_x86_64.whl", hash = "sha256:4b961d1bd5caaf83a01d1f39ebe66bb26f826178a2b6e611a41e8968980a79c1"},
+    {file = "frida-16.7.4-cp37-abi3-win32.whl", hash = "sha256:426b97c7b650f261be028a206edeb356393d34a66452efd2b694bce6dccf99f2"},
+    {file = "frida-16.7.4-cp37-abi3-win_amd64.whl", hash = "sha256:981c0d8faa39b825cca102b1da6ad74812cc2e9548e4c419059fe8a14b2494a7"},
+    {file = "frida-16.7.4.tar.gz", hash = "sha256:fcdd99130c661f20816cfc640e85878f3df14a301092dcddbc7021591e9f5d3f"},
 ]
 
 [[package]]
@@ -636,6 +637,7 @@ description = "Grodd runner is a python program that tries to browse all activit
 optional = true
 python-versions = ">=3.11,<4.0.0"
 groups = ["main"]
+markers = "extra == \"grodd\""
 files = []
 develop = false
 
@@ -657,6 +659,7 @@ description = "Human friendly output for text interfaces using Python"
 optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 groups = ["main"]
+markers = "extra == \"grodd\""
 files = [
     {file = "humanfriendly-10.0-py2.py3-none-any.whl", hash = "sha256:1697e1a8a8f550fd43c2865cd84542fc175a61dcb779b6fee18cf6b6ccba1477"},
     {file = "humanfriendly-10.0.tar.gz", hash = "sha256:6b0b831ce8f15f7300721aa49829fc4e83921a9a301cc7f606be6686a2288ddc"},
@@ -1517,7 +1520,7 @@ description = "A python implementation of GNU readline."
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "sys_platform == \"win32\""
+markers = "sys_platform == \"win32\" and extra == \"grodd\""
 files = [
     {file = "pyreadline3-3.5.4-py3-none-any.whl", hash = "sha256:eaf8e6cc3c49bcccf145fc6067ba8643d1df34d604a1ec0eccbf7a18e6d3fae6"},
     {file = "pyreadline3-3.5.4.tar.gz", hash = "sha256:8d57d53039a1c75adba8e50dd3d992b28143480816187ea5efbd5c78e6c885b7"},
@@ -1726,7 +1729,7 @@ develop = false
 
 [package.dependencies]
 androguard = ">=4.1.2,<5.0.0"
-frida = "16.7.0"
+frida = "16.7.4"
 frida-tools = ">=13.6.1,<14.0.0"
 
 [package.source]
@@ -1768,6 +1771,7 @@ description = "Python Wrapper for Android UiAutomator test tool"
 optional = true
 python-versions = "*"
 groups = ["main"]
+markers = "extra == \"grodd\""
 files = [
     {file = "uiautomator-1.0.2.tar.gz", hash = "sha256:48a41c36f8347b643ff215d41b73ab2b4f542a0e3f7b110b85f7952b70742744"},
 ]
@@ -1782,6 +1786,7 @@ description = "HTTP library with thread-safe connection pooling, file post, and 
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
+markers = "extra == \"grodd\""
 files = [
     {file = "urllib3-2.3.0-py3-none-any.whl", hash = "sha256:1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df"},
     {file = "urllib3-2.3.0.tar.gz", hash = "sha256:f8c5449b3cf0861679ce7e0503c7b44b5ec981bec0d1d3795a07f1ba96f0204d"},
@@ -1917,7 +1922,10 @@ files = [
 [package.extras]
 dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
 
+[extras]
+grodd = ["grodd-runner"]
+
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0.0"
-content-hash = "1bcf2198a037383d3d29aea2059caec389c58b17d89d17eb4ce8d5d9c71fa8b0"
+content-hash = "65605edac027e802492d9d6f58a6f2fe51ab84d31b1ca12d7e2e7c5a1c5a2d9f"

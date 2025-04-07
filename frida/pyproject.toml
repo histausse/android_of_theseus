@@ -14,8 +14,6 @@ dependencies = [
 ]
 
 
-[project.optional-dependencies]
-grodd = ["grodd-runner @ git+ssh://git@gitlab.inria.fr/CIDRE/malware/grodd-runner.git"]
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

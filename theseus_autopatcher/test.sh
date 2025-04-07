@@ -14,7 +14,7 @@ env --chdir "${FOLDER}" poetry build
 TMP=$(mktemp -d)
 python -m venv "${TMP}"
 source "${TMP}/bin/activate"
-pip install "${FOLDER}/dist/theseus_autopatcher-0.1.0-py3-none-any.whl"
+pip install "${FOLDER}/dist/theseus_autopatcher-0.1.0-py3-none-any.whl[grodd]"
 
 #source .venv/bin/activate
 

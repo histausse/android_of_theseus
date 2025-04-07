@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 
 try:
     from grodd_runner import grodd_runner  # type: ignore
@@ -14,6 +15,7 @@ def explore_app(
     android_sdk: Path | None = None,
 ):
     if USE_GRODD:
+        time.sleep(5)  # let the app load
         grodd_runner(
             "grodd", device, timeout=300, package=package, android_sdk=android_sdk
         )

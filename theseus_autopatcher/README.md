@@ -34,3 +34,13 @@ Build the package:
 ```
 poetry build
 ```
+
+## Install
+
+Once all the build steps are done, you can install the package with `pip install dist/theseus_autopatcher-0.1.0-py3-none-any.whl`. 
+
+**If you use an external patcher binary** (with the `--patch` option), you can skip the build steps and `pip install .`.
+
+If you have access to the grodd repo, you can use the grodd automatic app runner, by the project with the `grodd` extra:
+
+`pip install dist/theseus_autopatcher-0.1.0-py3-none-any.whl[grodd]` or `pip install .[grodd]`
