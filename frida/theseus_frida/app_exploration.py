@@ -15,9 +15,14 @@ def explore_app(
     android_sdk: Path | None = None,
 ):
     if USE_GRODD:
-        time.sleep(5)  # let the app load
+        time.sleep(1)  # let the app load
         grodd_runner(
-            "grodd", device, timeout=300, package=package, android_sdk=android_sdk
+            "grodd",
+            device,
+            timeout=300,
+            package=package,
+            android_sdk=android_sdk,
+            slowdown=1.0,
         )
 
     else:
