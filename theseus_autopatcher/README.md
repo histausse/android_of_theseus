@@ -43,4 +43,6 @@ Once all the build steps are done, you can install the package with `pip install
 
 If you have access to the grodd repo, you can use the grodd automatic app runner, by the project with the `grodd` extra:
 
-`pip install dist/theseus_autopatcher-0.1.0-py3-none-any.whl[grodd]` or `pip install .[grodd]`
+`pip install dist/theseus_autopatcher-0.1.0-py3-none-any.whl[grodd,no-plt]` or `pip install .[grodd,no-plt]`
+
+(The `no-plt` extra replace the matplotlib that can problematic on some system with a dummy package. The package is needed because androguard uses it on a feature that really should be optional)

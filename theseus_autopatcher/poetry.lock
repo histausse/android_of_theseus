@@ -1433,8 +1433,9 @@ dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
 
 [extras]
 grodd = ["grodd-runner"]
+no-plt = ["matplotlib"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0.0"
-content-hash = "7040c0766fa42a2c4513c82b38d5a653a18bde46bc51d3c517edfd6be74942c5"
+content-hash = "859ddea48bf88fdb2b3a1eeffda92e1bd2a45353935eff438fcc4ed6456d8358"

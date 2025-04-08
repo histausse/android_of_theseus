@@ -11,11 +11,12 @@ requires-python = ">=3.13,<4.0.0"
 
 [tool.poetry.dependencies]
 theseus-frida = { path = "../frida" }
-matplotlib = { path = "../matplotlib" }
+matplotlib = { path = "../matplotlib", optional = true }
 grodd-runner = {git = "ssh://git@gitlab.inria.fr/CIDRE/malware/grodd-runner.git", optional = true}
 
 [tool.poetry.extras]
 grodd = ["grodd-runner"]
+no-plt = ["matplotlib"]
 
 [tool.poetry]
 packages = [{include = "theseus_autopatcher", from = "src"}]
