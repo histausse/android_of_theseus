@@ -111,7 +111,7 @@ public class MethodActivity extends Activity {
         b1.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Utils.popup(ac, "MSG", classLoaderName + ", has parent:" + hasParent + ", direct: "+ isDirect + ", method: Virtual");
+                Main.run(ac, classLoaderName, isDirect, hasParent, "Virtual");
             }
         });
 
@@ -119,7 +119,7 @@ public class MethodActivity extends Activity {
         b2.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Utils.popup(ac, "MSG", classLoaderName + ", has parent:" + hasParent + ", direct: "+ isDirect + ", method: Static");
+                Main.run(ac, classLoaderName, isDirect, hasParent, "Static");
             }
         });
 
@@ -127,7 +127,7 @@ public class MethodActivity extends Activity {
         b3.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Utils.popup(ac, "MSG", classLoaderName + ", has parent:" + hasParent + ", direct: "+ isDirect + ", method: Extended");
+                Main.run(ac, classLoaderName, isDirect, hasParent, "Extended");
             }
         });
 
@@ -135,7 +135,7 @@ public class MethodActivity extends Activity {
         b4.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Utils.popup(ac, "MSG", classLoaderName + ", has parent:" + hasParent + ", direct: "+ isDirect + ", method: Interface");
+                Main.run(ac, classLoaderName, isDirect, hasParent, "Interface");
             }
         });
 
@@ -143,7 +143,7 @@ public class MethodActivity extends Activity {
         b5.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Utils.popup(ac, "MSG", classLoaderName + ", has parent:" + hasParent + ", direct: "+ isDirect + ", method: Interface Static");
+                Main.run(ac, classLoaderName, isDirect, hasParent, "Interface Static");
             }
         });
 
@@ -151,7 +151,7 @@ public class MethodActivity extends Activity {
         b6.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Utils.popup(ac, "MSG", classLoaderName + ", has parent:" + hasParent + ", direct: "+ isDirect + ", method: Factory Pattern");
+                Main.run(ac, classLoaderName, isDirect, hasParent, "Factory Pattern");
             }
         });
     }

@@ -12,9 +12,6 @@ public class Utils {
     public static String source() {
         return "Secret";
     }
-    public static String source(String tag) {
-        return "[" + tag + "] Secret";
-    }
 
     public static void popup(Activity ac, String title, String msg) {
         Log.e("THESEUS", "POPUP, title: " + title + ", msg: " + msg);
