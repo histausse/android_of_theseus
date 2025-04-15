@@ -1,6 +1,6 @@
 package com.example.theseus.dynandref;
 
-public interface ICollider {
+public interface AIReflectee {
     public String interTransfer(
         boolean bool, 
         byte by, 

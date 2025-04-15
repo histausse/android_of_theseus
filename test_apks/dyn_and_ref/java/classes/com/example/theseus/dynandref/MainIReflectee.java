@@ -1,6 +1,6 @@
 package com.example.theseus.dynandref;
 
-public interface ICollider {
+public interface MainIReflectee {
     public String interTransfer(
         boolean bool, 
         byte by, 
@@ -30,6 +30,6 @@ public interface ICollider {
         for (String v : args) {
             val += " " + v;
         }
-        return "A:" + val + "(" + bool + " " + by + " " + sh + " " + ch + " " + in + " " + lo + " " + fl + " " + dou + " " + str + ")";
+        return "MainAPK:" + val + "(" + bool + " " + by + " " + sh + " " + ch + " " + in + " " + lo + " " + fl + " " + dou + " " + str + ")";
     }
 }

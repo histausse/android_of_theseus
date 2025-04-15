@@ -24,6 +24,7 @@ D8_ARGS =
 pass=ahahah
 
 export PATH := $(JAVA_PATH):$(PATH)
+export ANDROID_HOME := $(SDK_TOOLS)
 
 all: $(shell mkdir -p build)
 all: clean build/$(APP).apk
@@ -33,9 +34,10 @@ debug: JAVAC_ARGS += -g
 debug: D8_ARGS += --debug
 debug: all
 
-test: all
+test: all grodd-venv
 	$(ADB) install build/$(APP).apk
 	$(ADB) shell am start -n $(PACKAGE)/.$(MAIN_ACTIVITY)
+	grodd-venv/bin/grodd-runner -d emulator-5554 -r grodd -t 300 -p $(PACKAGE) # -s 1.
 
 build/%.v1signed.apk: ./build/%.unsigned.apk ./ToyKey.keystore
 	$(JARSIGNER) -verbose -keystore ./ToyKey.keystore -storepass $(pass) -keypass $(pass) -signedjar $@ $< SignKey
@@ -66,6 +68,10 @@ build/%.apk: ./build/%.v2aligned.apk
 
 ToyKey.keystore :
 	$(KEYTOOL) -genkeypair -validity 1000 -dname "CN=SomeKey,O=SomeOne,C=FR" -keystore $@ -storepass $(pass) -keypass $(pass) -alias SignKey -keyalg RSA -v
+
+grodd-venv:
+	python3 -m venv grodd-venv
+	grodd-venv/bin/pip install 'git+ssh://git@gitlab.inria.fr/CIDRE/malware/grodd-runner.git'
 
 clean:
 	$(RM) -r build/*

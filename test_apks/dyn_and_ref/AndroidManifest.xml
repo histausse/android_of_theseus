@@ -17,6 +17,26 @@
             </intent-filter>
         </activity>
         <activity android:name=".ClassLoaderContextActivity"/>
+        <activity android:name=".DelegateLastClassLoaderActivity"/>
+        <activity android:name=".DexClassLoaderActivity"/>
+        <activity android:name=".InMemoryDexClassLoaderActivity"/>
+	<activity android:name=".PathClassLoaderActivity"/>
+        <activity android:name=".NoCollisionWithParentDelegateLastClassLoaderActivity"/>
+        <activity android:name=".NoCollisionWithParentDexClassLoaderActivity"/>
+        <activity android:name=".NoCollisionWithParentInMemoryDexClassLoaderActivity"/>
+        <activity android:name=".NoCollisionWithParentPathClassLoaderActivity"/>
+        <activity android:name=".NoCollisionWithoutParentDelegateLastClassLoaderActivity"/>
+        <activity android:name=".NoCollisionWithoutParentDexClassLoaderActivity"/>
+        <activity android:name=".NoCollisionWithoutParentInMemoryDexClassLoaderActivity"/>
+        <activity android:name=".NoCollisionWithoutParentPathClassLoaderActivity"/>
+        <activity android:name=".CollisionWithParentDelegateLastClassLoaderActivity"/>
+        <activity android:name=".CollisionWithParentDexClassLoaderActivity"/>
+        <activity android:name=".CollisionWithParentInMemoryDexClassLoaderActivity"/>
+        <activity android:name=".CollisionWithParentPathClassLoaderActivity"/>
+        <activity android:name=".CollisionWithoutParentDelegateLastClassLoaderActivity"/>
+        <activity android:name=".CollisionWithoutParentDexClassLoaderActivity"/>
+        <activity android:name=".CollisionWithoutParentInMemoryDexClassLoaderActivity"/>
+        <activity android:name=".CollisionWithoutParentPathClassLoaderActivity"/>
         <activity android:name=".MethodActivity"/>
     </application>
 

@@ -38,14 +38,13 @@ import java.util.Arrays;
 
 public class MethodActivity extends Activity {
     public String classLoaderName;
+    public boolean hasCollision;
     public boolean hasParent;
-    public boolean isDirect;
 
 
     public String getdexfile(String name) {
         File dexfile = new File(getCacheDir(), name);
         dexfile.setReadOnly();
-        Log.e("DEBUG", dexfile.getPath());
         return dexfile.getPath();
     }
 
@@ -54,7 +53,7 @@ public class MethodActivity extends Activity {
         super.onCreate(savedInstanceState);
         Intent intent = getIntent();
         classLoaderName = intent.getStringExtra("classLoaderName");
-        isDirect = intent.getBooleanExtra("direct", false);
+        hasCollision = intent.getBooleanExtra("collision", false);
         hasParent = intent.getBooleanExtra("parent", false);
 
         ColorStateList buttonColor = ColorStateList.valueOf(0xff808080);
@@ -95,7 +94,7 @@ public class MethodActivity extends Activity {
 
         Button b5 = new Button(this);
         b5.generateViewId();
-        linLayout.addView(b5);
+        //linLayout.addView(b5); // Static Interface Methods are a pain
 
         Button b6 = new Button(this);
         b6.generateViewId();
@@ -111,7 +110,7 @@ public class MethodActivity extends Activity {
         b1.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Main.run(ac, classLoaderName, isDirect, hasParent, "Virtual");
+                Main.run(ac, classLoaderName, hasCollision, hasParent, "Virtual");
             }
         });
 
@@ -119,7 +118,7 @@ public class MethodActivity extends Activity {
         b2.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Main.run(ac, classLoaderName, isDirect, hasParent, "Static");
+                Main.run(ac, classLoaderName, hasCollision, hasParent, "Static");
             }
         });
 
@@ -127,7 +126,7 @@ public class MethodActivity extends Activity {
         b3.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Main.run(ac, classLoaderName, isDirect, hasParent, "Extended");
+                Main.run(ac, classLoaderName, hasCollision, hasParent, "Extended");
             }
         });
 
@@ -135,7 +134,7 @@ public class MethodActivity extends Activity {
         b4.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Main.run(ac, classLoaderName, isDirect, hasParent, "Interface");
+                Main.run(ac, classLoaderName, hasCollision, hasParent, "Interface");
             }
         });
 
@@ -143,7 +142,7 @@ public class MethodActivity extends Activity {
         b5.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Main.run(ac, classLoaderName, isDirect, hasParent, "Interface Static");
+                Main.run(ac, classLoaderName, hasCollision, hasParent, "Interface Static");
             }
         });
 
@@ -151,7 +150,7 @@ public class MethodActivity extends Activity {
         b6.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Main.run(ac, classLoaderName, isDirect, hasParent, "Factory Pattern");
+                Main.run(ac, classLoaderName, hasCollision, hasParent, "Factory Pattern");
             }
         });
     }

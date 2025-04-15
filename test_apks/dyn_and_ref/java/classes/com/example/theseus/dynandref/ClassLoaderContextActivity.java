@@ -94,7 +94,7 @@ public class ClassLoaderContextActivity extends Activity {
 
         Activity ac = this;
 
-        b1.setText("Direct With Parent");
+        b1.setText("Collision With Parent");
         b1.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
@@ -102,7 +102,7 @@ public class ClassLoaderContextActivity extends Activity {
             }
         });
 
-        b2.setText("Direct Without Parent");
+        b2.setText("Collision Without Parent");
         b2.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
@@ -110,14 +110,15 @@ public class ClassLoaderContextActivity extends Activity {
             }
         });
 
-        b3.setText("Indirect With Parent");
+        b3.setText("No Collision With Parent");
         b3.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
+                nextActivity(classLoaderName, false, true);
             }
         });
 
-        b4.setText("Indirect Without Parent");
+        b4.setText("No Collision Without Parent");
         b4.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
@@ -126,10 +127,47 @@ public class ClassLoaderContextActivity extends Activity {
         });
     }
 
-    public void nextActivity(String classLoaderName, boolean isDirect, boolean hasParent) {
-        Intent intent = new Intent(this, MethodActivity.class);
+    public void nextActivity(String classLoaderName, boolean hasCollision, boolean hasParent) {
+        Class cl = null;
+        if  (classLoaderName.equals("DelegateLastClassLoader") && hasCollision && hasParent) {
+            cl = CollisionWithParentDelegateLastClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("DelegateLastClassLoader") && hasCollision && !hasParent) {
+            cl = CollisionWithParentDelegateLastClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("DelegateLastClassLoader") && !hasCollision && hasParent) {
+            cl = NoCollisionWithoutParentDelegateLastClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("DelegateLastClassLoader") && !hasCollision && !hasParent) {
+            cl = NoCollisionWithoutParentDelegateLastClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("DexClassLoader") && hasCollision && hasParent) {
+            cl = CollisionWithParentDexClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("DexClassLoader") && hasCollision && !hasParent) {
+            cl = CollisionWithParentDexClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("DexClassLoader") && !hasCollision && hasParent) {
+            cl = NoCollisionWithoutParentDexClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("DexClassLoader") && !hasCollision && !hasParent) {
+            cl = NoCollisionWithoutParentDexClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("InMemoryDexClassLoader") && hasCollision && hasParent) {
+            cl = CollisionWithParentInMemoryDexClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("InMemoryDexClassLoader") && hasCollision && !hasParent) {
+            cl = CollisionWithParentInMemoryDexClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("InMemoryDexClassLoader") && !hasCollision && hasParent) {
+            cl = NoCollisionWithoutParentInMemoryDexClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("InMemoryDexClassLoader") && !hasCollision && !hasParent) {
+            cl = NoCollisionWithoutParentInMemoryDexClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("PathClassLoader") && hasCollision && hasParent) {
+            cl = CollisionWithParentPathClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("PathClassLoader") && hasCollision && !hasParent) {
+            cl = CollisionWithParentPathClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("PathClassLoader") && !hasCollision && hasParent) {
+            cl = NoCollisionWithoutParentPathClassLoaderActivity.class;
+        } else if  (classLoaderName.equals("PathClassLoader") && !hasCollision && !hasParent) {
+            cl = NoCollisionWithoutParentPathClassLoaderActivity.class;
+        } else {
+            Log.e("THESEUS", "error: unknown activity for " + classLoaderName + " with hasCollision = " + hasCollision + " and hasParent = " + hasParent);
+            return;
+        };
+        Intent intent = new Intent(this, cl);
         intent.putExtra("classLoaderName", classLoaderName);
-        intent.putExtra("direct", isDirect);
+        intent.putExtra("collision", hasCollision);
         intent.putExtra("parent", hasParent);
         startActivity(intent);
     }

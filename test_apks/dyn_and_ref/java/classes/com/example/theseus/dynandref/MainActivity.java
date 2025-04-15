@@ -110,7 +110,9 @@ public class MainActivity extends Activity {
         b1.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                nextActivity("DelegateLastClassLoader");
+                Intent intent = new Intent(ac, DelegateLastClassLoaderActivity.class);
+                intent.putExtra("classLoaderName", "DelegateLastClassLoader");
+                startActivity(intent);
             }
         });
 
@@ -118,7 +120,9 @@ public class MainActivity extends Activity {
         b2.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                nextActivity("DexClassLoader");
+                Intent intent = new Intent(ac, DexClassLoaderActivity.class);
+                intent.putExtra("classLoaderName", "DexClassLoader");
+                startActivity(intent);
             }
         });
 
@@ -126,7 +130,9 @@ public class MainActivity extends Activity {
         b3.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                nextActivity("InMemoryDexClassLoader");
+                Intent intent = new Intent(ac, InMemoryDexClassLoaderActivity.class);
+                intent.putExtra("classLoaderName", "InMemoryDexClassLoader");
+                startActivity(intent);
             }
         });
 
@@ -134,14 +140,10 @@ public class MainActivity extends Activity {
         b4.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                nextActivity("PathClassLoader");
+                Intent intent = new Intent(ac, PathClassLoaderActivity.class);
+                intent.putExtra("classLoaderName", "PathClassLoader");
+                startActivity(intent);
             }
         });
-    }
-
-    public void nextActivity(String classLoaderName) {
-        Intent intent = new Intent(this, ClassLoaderContextActivity.class);
-        intent.putExtra("classLoaderName", classLoaderName);
-        startActivity(intent);
     }
 }

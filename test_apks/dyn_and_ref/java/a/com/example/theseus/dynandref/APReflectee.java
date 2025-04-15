@@ -1,7 +1,7 @@
 package com.example.theseus.dynandref;
 
-public interface ICollider {
-    public String interTransfer(
+public class APReflectee {
+    public String extendedTransfer(
         boolean bool, 
         byte by, 
         short sh, 
@@ -9,19 +9,6 @@ public interface ICollider {
         int in, 
         long lo, 
         float fl, 
-        double dou,
-        String str,
-        String... args
-    );
-
-    default public String staticInterfaceTransfer(
-        boolean bool,
-        byte by,
-        short sh,
-        char ch,
-        int in,
-        long lo,
-        float fl,
         double dou,
         String str,
         String... args
