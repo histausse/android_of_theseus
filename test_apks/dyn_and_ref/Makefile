@@ -37,7 +37,7 @@ debug: all
 test: all grodd-venv
 	$(ADB) install build/$(APP).apk
 	$(ADB) shell am start -n $(PACKAGE)/.$(MAIN_ACTIVITY)
-	grodd-venv/bin/grodd-runner -d emulator-5554 -r grodd -t 300 -p $(PACKAGE) # -s 1.
+	grodd-venv/bin/grodd-runner -d emulator-5554 -r grodd -t 900 -p $(PACKAGE) -s 0.5
 
 build/%.v1signed.apk: ./build/%.unsigned.apk ./ToyKey.keystore
 	$(JARSIGNER) -verbose -keystore ./ToyKey.keystore -storepass $(pass) -keypass $(pass) -signedjar $@ $< SignKey
@@ -53,6 +53,11 @@ build/%/classes: $(shell find java/ -type f -regex ".*\.java" )
 build/%/classes.dex: build/%/classes
 	mkdir -p ./build/$*
 	$(D8) $(D8_ARGS) --classpath $(SDK_TOOLS)/platforms/android-$(VERSION_B)/android.jar $(shell find build/$*/classes -type f -regex ".*\.class" -printf "'%p'\n") --output ./build/$*/
+
+build/a/classes.dex: build/a/classes
+	mkdir -p ./build/a
+	$(D8) $(D8_ARGS) --classpath $(SDK_TOOLS)/platforms/android-$(VERSION_B)/android.jar $(shell find build/a/classes -type f -regex ".*\.class" -printf "'%p'\n") --output ./build/a/
+	#$(D8) $(D8_ARGS) --classpath $(SDK_TOOLS)/platforms/android-$(VERSION_B)/android.jar $(shell find build/a/classes -type f -regex ".*\.class" -not -name "ICommonInterface.class" -printf "'%p'\n") --output ./build/a/
 
 build/%.unsigned.apk: build/classes/classes.dex build/a/classes.dex
 	mkdir -p ./build/$*_files ./build/$*_files/assets

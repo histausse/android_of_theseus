@@ -72,9 +72,9 @@ public class Main {
 
         if (methodType.equals("Virtual")) {
             Method mth = clz.getMethod("virtTransfer", boolean.class, byte.class, short.class, char.class, int.class, long.class, float.class, double.class, String.class, String[].class);
-            Object instance = clz.getDeclaredConstructor().newInstance();
             invoke(ac,
-                instance,
+                true,
+                clz,
                 mth,
                 args,
                 true,
@@ -91,7 +91,8 @@ public class Main {
         } else if (methodType.equals("Static")) {
             Method mth = clz.getMethod("staticTransfer", boolean.class, byte.class, short.class, char.class, int.class, long.class, float.class, double.class, String.class, String[].class);
             invoke(ac,
-                null,
+                false,
+                clz,
                 mth,
                 args,
                 true,
@@ -107,9 +108,9 @@ public class Main {
             );
         } else if (methodType.equals("Extended")) {
             Method mth = clz.getMethod("extendedTransfer", boolean.class, byte.class, short.class, char.class, int.class, long.class, float.class, double.class, String.class, String[].class);
-            Object instance = clz.getDeclaredConstructor().newInstance();
             invoke(ac,
-                instance,
+                true,
+                clz,
                 mth,
                 args,
                 true,
@@ -125,9 +126,9 @@ public class Main {
             );
         } else if (methodType.equals("Interface")) {
             Method mth = clz.getMethod("interTransfer", boolean.class, byte.class, short.class, char.class, int.class, long.class, float.class, double.class, String.class, String[].class);
-            Object instance = clz.getDeclaredConstructor().newInstance();
             invoke(ac,
-                instance,
+                true,
+                clz,
                 mth,
                 args,
                 true,
@@ -147,7 +148,8 @@ public class Main {
             clz = cl.loadClass("com.example.theseus.dynandref.ICollider");
             Method mth = clz.getMethod("staticInterfaceTransfer", boolean.class, byte.class, short.class, char.class, int.class, long.class, float.class, double.class, String.class, String[].class);
             invoke(ac,
-                null,
+                false,
+                clz,
                 mth,
                 args,
                 true,
@@ -161,8 +163,19 @@ public class Main {
                 "",
                 new String[] {"some", "strings"}
             );
-        } else if (methodType.equals("Factory isDirectPattern")) {
-            return;
+        } else if (methodType.equals("Factory Pattern")) {
+            factory(
+                ac, clz, 
+                true, 
+                (byte)42, 
+                (short)666,
+                '*',
+                0xDEAD_BEEF,
+                0xD1AB011C_5EAF00DL,
+                0.99f,
+                3.1415926535897932384626433d,
+                new String[] {"some", "strings"}
+            );
         } else {
             return;
         };
@@ -171,8 +184,36 @@ public class Main {
         }
     }
 
+    public static void factory(
+        Activity ac, Class clz,
+        boolean bool,
+        byte by,
+        short sh,
+        char ch,
+        int in,
+        long lo,
+        float fl,
+        double dou,
+        String... args
+    ) throws Exception {
+        ICommonInterface instance = (ICommonInterface)clz.getDeclaredConstructor().newInstance();
+        String res = instance.commonInterTransfer(
+            bool,
+            by,
+            sh,
+            ch,
+            in,
+            lo,
+            fl,
+            dou,
+            Utils.source(),
+            args
+        );
+        Utils.sink(ac, res);
+    }
+
     public static void invoke(
-        Activity ac, Object instance, Method mth, Object[] args, 
+        Activity ac, boolean instanciate, Class clz, Method mth, Object[] args, 
         // Additionnal args to check the register reservation
         boolean bool, 
         byte by, 
@@ -185,8 +226,11 @@ public class Main {
         String str,
         String... strArgs
     ) throws Exception {
+        Object instance = null;
+        if (instanciate) {
+            instance = clz.getDeclaredConstructor().newInstance();
+        }
         args[8] = Utils.source();
-        Log.e("THESEUS", "instance: " + instance + " mth: " + mth);
         String res = (String)mth.invoke(instance, args);
         Utils.sink(ac, res);
         if (!(

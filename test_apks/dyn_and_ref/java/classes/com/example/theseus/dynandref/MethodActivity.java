@@ -98,7 +98,10 @@ public class MethodActivity extends Activity {
 
         Button b6 = new Button(this);
         b6.generateViewId();
-        linLayout.addView(b6);
+        if (!classLoaderName.equals("DelegateLastClassLoader") && hasParent) {
+            // if no parent or use DelegateLastClassLoader, the type of the Interface is incompatible
+            linLayout.addView(b6);
+        }
 
         scrollView.addView(linLayout);
         relLayout.addView(scrollView);

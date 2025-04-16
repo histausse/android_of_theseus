@@ -132,33 +132,33 @@ public class ClassLoaderContextActivity extends Activity {
         if  (classLoaderName.equals("DelegateLastClassLoader") && hasCollision && hasParent) {
             cl = CollisionWithParentDelegateLastClassLoaderActivity.class;
         } else if  (classLoaderName.equals("DelegateLastClassLoader") && hasCollision && !hasParent) {
-            cl = CollisionWithParentDelegateLastClassLoaderActivity.class;
+            cl = CollisionWithoutParentDelegateLastClassLoaderActivity.class;
         } else if  (classLoaderName.equals("DelegateLastClassLoader") && !hasCollision && hasParent) {
-            cl = NoCollisionWithoutParentDelegateLastClassLoaderActivity.class;
+            cl = NoCollisionWithParentDelegateLastClassLoaderActivity.class;
         } else if  (classLoaderName.equals("DelegateLastClassLoader") && !hasCollision && !hasParent) {
             cl = NoCollisionWithoutParentDelegateLastClassLoaderActivity.class;
         } else if  (classLoaderName.equals("DexClassLoader") && hasCollision && hasParent) {
             cl = CollisionWithParentDexClassLoaderActivity.class;
         } else if  (classLoaderName.equals("DexClassLoader") && hasCollision && !hasParent) {
-            cl = CollisionWithParentDexClassLoaderActivity.class;
+            cl = CollisionWithoutParentDexClassLoaderActivity.class;
         } else if  (classLoaderName.equals("DexClassLoader") && !hasCollision && hasParent) {
-            cl = NoCollisionWithoutParentDexClassLoaderActivity.class;
+            cl = NoCollisionWithParentDexClassLoaderActivity.class;
         } else if  (classLoaderName.equals("DexClassLoader") && !hasCollision && !hasParent) {
             cl = NoCollisionWithoutParentDexClassLoaderActivity.class;
         } else if  (classLoaderName.equals("InMemoryDexClassLoader") && hasCollision && hasParent) {
             cl = CollisionWithParentInMemoryDexClassLoaderActivity.class;
         } else if  (classLoaderName.equals("InMemoryDexClassLoader") && hasCollision && !hasParent) {
-            cl = CollisionWithParentInMemoryDexClassLoaderActivity.class;
+            cl = CollisionWithoutParentInMemoryDexClassLoaderActivity.class;
         } else if  (classLoaderName.equals("InMemoryDexClassLoader") && !hasCollision && hasParent) {
-            cl = NoCollisionWithoutParentInMemoryDexClassLoaderActivity.class;
+            cl = NoCollisionWithParentInMemoryDexClassLoaderActivity.class;
         } else if  (classLoaderName.equals("InMemoryDexClassLoader") && !hasCollision && !hasParent) {
             cl = NoCollisionWithoutParentInMemoryDexClassLoaderActivity.class;
         } else if  (classLoaderName.equals("PathClassLoader") && hasCollision && hasParent) {
             cl = CollisionWithParentPathClassLoaderActivity.class;
         } else if  (classLoaderName.equals("PathClassLoader") && hasCollision && !hasParent) {
-            cl = CollisionWithParentPathClassLoaderActivity.class;
+            cl = CollisionWithoutParentPathClassLoaderActivity.class;
         } else if  (classLoaderName.equals("PathClassLoader") && !hasCollision && hasParent) {
-            cl = NoCollisionWithoutParentPathClassLoaderActivity.class;
+            cl = NoCollisionWithParentPathClassLoaderActivity.class;
         } else if  (classLoaderName.equals("PathClassLoader") && !hasCollision && !hasParent) {
             cl = NoCollisionWithoutParentPathClassLoaderActivity.class;
         } else {
