@@ -106,6 +106,12 @@ def main():
             the package. (static x86_64 linux build with musl optimized for binary size instead of speed)",
         type=Path,
     )
+    parser.add_argument(
+        "--runner-script",
+        required=False,
+        help="Script to run to test the application. Must be a .py (python) or .sh (bash).",
+        type=Path,
+    )
     args = parser.parse_args()
 
     if args.zipalign is None:
@@ -120,6 +126,12 @@ def main():
         keytool = get_keytool_path()
     else:
         keytool = args.keytool
+
+    runner_f = None
+    if args.runner_script is not None and args.runner_script.name.endswith(".py"):
+        runner_f = lambda: subprocess.run(["python3", str(args.runner_script)])
+    elif args.runner_script is not None and args.runner_script.name.endswith(".sh"):
+        runner_f = lambda: subprocess.run(["bash", str(args.runner_script)])
 
     if zipalign is None:
         print(
@@ -158,6 +170,7 @@ def main():
                 file_storage=tmpd / "dex",
                 output=fp,
                 android_sdk_path=get_android_sdk_path(),
+                apk_explorer=runner_f,
             )
         patch_apk(
             runtime_data=tmpd / "runtime.json",

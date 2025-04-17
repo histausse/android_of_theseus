@@ -11,6 +11,7 @@ import shutil
 import lzma
 from pathlib import Path
 from typing import TextIO, Any
+from collections.abc import Callable
 
 from .app_exploration import explore_app
 
@@ -319,6 +320,7 @@ def collect_runtime(
     output: TextIO,
     adb_path: Path | None = None,
     android_sdk_path: Path | None = None,
+    apk_explorer: None | Callable[[], None] = None,
 ):
     env = dict(os.environ)
 
@@ -344,7 +346,7 @@ def collect_runtime(
     if device.enumerate_applications([app]):
         # Uninstall the APK if it already exist
         subprocess.run([adb, "uninstall", app], env=env)
-    subprocess.run([adb, "install", str(apk.absolute())], env=env)
+    subprocess.run([adb, "install", "-g", str(apk.absolute())], env=env)
 
     with FRIDA_SCRIPT.open("r") as file:
         jsscript = file.read()
@@ -400,7 +402,10 @@ def collect_runtime(
     #     time.sleep(0.3)
     # print(f"[*] Classloader list received" + " " * 20)
 
-    explore_app(app, device=device.id, android_sdk=android_sdk_path)
+    if apk_explorer is None:
+        explore_app(app, device=device.id, android_sdk=android_sdk_path)
+    else:
+        apk_explorer()
 
     # Try to find the Main class loader
     main_class_loader: str | None = None
