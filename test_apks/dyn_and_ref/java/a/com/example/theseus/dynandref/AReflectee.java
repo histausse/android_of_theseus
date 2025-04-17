@@ -78,4 +78,23 @@ public class AReflectee extends APReflectee implements AIReflectee, ICommonInter
         }
         return getReflecteeId() + ":" + val + "(" + bool + " " + by + " " + sh + " " + ch + " " + in + " " + lo + " " + fl + " " + dou + " " + str + ")";
     }
+
+    public String commonParentTransfer(
+        boolean bool, 
+        byte by, 
+        short sh, 
+        char ch, 
+        int in, 
+        long lo, 
+        float fl, 
+        double dou,
+        String str,
+        String... args
+    ) {
+        String val = "";
+        for (String v : args) {
+            val += " " + v;
+        }
+        return getReflecteeId() + ":" + val + "(" + bool + " " + by + " " + sh + " " + ch + " " + in + " " + lo + " " + fl + " " + dou + " " + str + ")";
+    }
 }

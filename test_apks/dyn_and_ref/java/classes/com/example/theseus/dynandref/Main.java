@@ -31,6 +31,7 @@ public class Main {
 
     public static void run(Activity ac, String clname, boolean hasCollision, boolean hasParent, String methodType) {
         try {
+        Log.i("THESEUS", "clname: " + clname + ", hasCollision: " + hasCollision + ", hasParent: " + hasParent + ", methodType: " + methodType);
         ClassLoader cl;
         ClassLoader parent;
         if (hasParent) {
@@ -163,8 +164,21 @@ public class Main {
                 "",
                 new String[] {"some", "strings"}
             );
-        } else if (methodType.equals("Factory Pattern")) {
-            factory(
+        } else if (methodType.equals("Factory Pattern Interface")) {
+            factoryInterface(
+                ac, clz, 
+                true, 
+                (byte)42, 
+                (short)666,
+                '*',
+                0xDEAD_BEEF,
+                0xD1AB011C_5EAF00DL,
+                0.99f,
+                3.1415926535897932384626433d,
+                new String[] {"some", "strings"}
+            );
+        } else if (methodType.equals("Factory Pattern Extend")) {
+            factoryExtend(
                 ac, clz, 
                 true, 
                 (byte)42, 
@@ -184,7 +198,7 @@ public class Main {
         }
     }
 
-    public static void factory(
+    public static void factoryInterface(
         Activity ac, Class clz,
         boolean bool,
         byte by,
@@ -198,6 +212,33 @@ public class Main {
     ) throws Exception {
         ICommonInterface instance = (ICommonInterface)clz.getDeclaredConstructor().newInstance();
         String res = instance.commonInterTransfer(
+            bool,
+            by,
+            sh,
+            ch,
+            in,
+            lo,
+            fl,
+            dou,
+            Utils.source(),
+            args
+        );
+        Utils.sink(ac, res);
+    }
+    public static void factoryExtend(
+        Activity ac, Class clz,
+        boolean bool,
+        byte by,
+        short sh,
+        char ch,
+        int in,
+        long lo,
+        float fl,
+        double dou,
+        String... args
+    ) throws Exception {
+        PCommonParent instance = (PCommonParent)clz.getDeclaredConstructor().newInstance();
+        String res = instance.commonParentTransfer(
             bool,
             by,
             sh,

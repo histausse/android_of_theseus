@@ -103,6 +103,13 @@ public class MethodActivity extends Activity {
             linLayout.addView(b6);
         }
 
+        Button b7 = new Button(this);
+        b7.generateViewId();
+        if (!classLoaderName.equals("DelegateLastClassLoader") && hasParent) {
+            // if no parent or use DelegateLastClassLoader, the type of the Interface is incompatible
+            linLayout.addView(b7);
+        }
+
         scrollView.addView(linLayout);
         relLayout.addView(scrollView);
         setContentView(relLayout);
@@ -149,18 +156,37 @@ public class MethodActivity extends Activity {
             }
         });
 
-        b6.setText("Factory Pattern");
+        b6.setText("Factory Pattern Interface");
         b6.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 v.setBackgroundTintList(buttonColor);
-                Main.run(ac, classLoaderName, hasCollision, hasParent, "Factory Pattern");
+                Main.run(ac, classLoaderName, hasCollision, hasParent, "Factory Pattern Interface");
             }
         });
+
+        b7.setText("Factory Pattern Extend");
+        b7.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                v.setBackgroundTintList(buttonColor);
+                Main.run(ac, classLoaderName, hasCollision, hasParent, "Factory Pattern Extend");
+            }
+        });
+
+        // Allow to start Main.run from intent for automation
+        String methodType = intent.getStringExtra("methodType");
+        if (methodType != null) {
+            Main.run(ac, classLoaderName, hasCollision, hasParent, methodType);
+        }
     }
 
-    public void nextActivity(String classLoaderName) {
-        Intent intent = new Intent(this, MethodActivity.class);
-        intent.putExtra("classLoaderName", classLoaderName);
-        startActivity(intent);
+    @Override
+    protected void onNewIntent(Intent intent) {
+        String classLoaderNameLocal = intent.getStringExtra("classLoaderName");
+        boolean hasCollisionLocal = intent.getBooleanExtra("collision", false);
+        boolean hasParentLocal = intent.getBooleanExtra("parent", false);
+        String methodType = intent.getStringExtra("methodType");
+        if (classLoaderNameLocal != null && methodType != null) {
+            Main.run(this, classLoaderNameLocal, hasCollisionLocal, hasParentLocal, methodType);
+        }
     }
 }

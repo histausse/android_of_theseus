@@ -36,8 +36,9 @@
         <activity android:name=".CollisionWithoutParentDelegateLastClassLoaderActivity"/>
         <activity android:name=".CollisionWithoutParentDexClassLoaderActivity"/>
         <activity android:name=".CollisionWithoutParentInMemoryDexClassLoaderActivity"/>
-        <activity android:name=".CollisionWithoutParentPathClassLoaderActivity"/>
-        <activity android:name=".MethodActivity"/>
+	<activity android:name=".CollisionWithoutParentPathClassLoaderActivity"/>
+	<!-- singleTop allow to send several intent to the same activity -->
+        <activity android:name=".MethodActivity" android:exported="true" android:launchMode="singleTop"/>
     </application>
 
 </manifest>

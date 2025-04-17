@@ -1,0 +1,153 @@
+--------- beginning of main
+clname: DelegateLastClassLoader, hasCollision: true, hasParent: true, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: true, hasParent: true, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: true, hasParent: true, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: true, hasParent: true, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: true, hasParent: false, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: true, hasParent: false, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: true, hasParent: false, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: true, hasParent: false, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: false, hasParent: true, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: false, hasParent: true, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: false, hasParent: true, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: false, hasParent: true, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: false, hasParent: false, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: false, hasParent: false, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: false, hasParent: false, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DelegateLastClassLoader, hasCollision: false, hasParent: false, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: true, hasParent: true, methodType: Virtual
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: true, hasParent: true, methodType: Static
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: true, hasParent: true, methodType: Extended
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: true, hasParent: true, methodType: Interface
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: true, hasParent: true, methodType: Factory Pattern Interface
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: true, hasParent: true, methodType: Factory Pattern Extend
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: true, hasParent: false, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: true, hasParent: false, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: true, hasParent: false, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: true, hasParent: false, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: false, hasParent: true, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: false, hasParent: true, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: false, hasParent: true, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: false, hasParent: true, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: false, hasParent: true, methodType: Factory Pattern Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: false, hasParent: true, methodType: Factory Pattern Extend
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: false, hasParent: false, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: false, hasParent: false, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: false, hasParent: false, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: DexClassLoader, hasCollision: false, hasParent: false, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: true, hasParent: true, methodType: Virtual
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: true, hasParent: true, methodType: Static
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: true, hasParent: true, methodType: Extended
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: true, hasParent: true, methodType: Interface
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: true, hasParent: true, methodType: Factory Pattern Interface
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: true, hasParent: true, methodType: Factory Pattern Extend
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: true, hasParent: false, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: true, hasParent: false, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: true, hasParent: false, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: true, hasParent: false, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: false, hasParent: true, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: false, hasParent: true, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: false, hasParent: true, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: false, hasParent: true, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: false, hasParent: true, methodType: Factory Pattern Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: false, hasParent: true, methodType: Factory Pattern Extend
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: false, hasParent: false, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: false, hasParent: false, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: false, hasParent: false, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: InMemoryDexClassLoader, hasCollision: false, hasParent: false, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: true, hasParent: true, methodType: Virtual
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: true, hasParent: true, methodType: Static
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: true, hasParent: true, methodType: Extended
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: true, hasParent: true, methodType: Interface
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: true, hasParent: true, methodType: Factory Pattern Interface
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: true, hasParent: true, methodType: Factory Pattern Extend
+POPUP, title: Data leak:, msg: MainAPK: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: true, hasParent: false, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: true, hasParent: false, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: true, hasParent: false, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: true, hasParent: false, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: false, hasParent: true, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: false, hasParent: true, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: false, hasParent: true, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: false, hasParent: true, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: false, hasParent: true, methodType: Factory Pattern Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: false, hasParent: true, methodType: Factory Pattern Extend
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: false, hasParent: false, methodType: Virtual
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: false, hasParent: false, methodType: Static
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: false, hasParent: false, methodType: Extended
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)
+clname: PathClassLoader, hasCollision: false, hasParent: false, methodType: Interface
+POPUP, title: Data leak:, msg: A: some strings(true 42 666 * -559038737 944260662268981261 0.99 3.141592653589793 Secret)

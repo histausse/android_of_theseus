@@ -1,6 +1,6 @@
 package com.example.theseus.dynandref;
 
-public class PCollider {
+public class PCollider extends PCommonParent{
     public String extendedTransfer(
         boolean bool, 
         byte by, 

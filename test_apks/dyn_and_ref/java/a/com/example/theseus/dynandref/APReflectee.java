@@ -1,6 +1,6 @@
 package com.example.theseus.dynandref;
 
-public class APReflectee {
+public class APReflectee extends PCommonParent {
     public String extendedTransfer(
         boolean bool, 
         byte by, 
