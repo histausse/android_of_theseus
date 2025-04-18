@@ -357,14 +357,14 @@ Java.perform(() => {
     // openInMemoryDexFilesNative() checks bufs.length == arrays.length == starts.length === ends.length
     for (let i = 0; i < bufs.length; i++) {
       let s = starts[i];
-      let e = starts[i];
+      let e = ends[i];
       // openInMemoryDexFilesNative() checks s < e
       let array = arrays[i];
       let buf = bufs[i];
       let raw = [];
       // match code from art/runtime/native/dalvik_system_DexFile.cc commit 3d19fbcc09b1b44928639b06cd0b88f735cd988d
+      raw = Arrays.copyOf([], e-s);
       if (array === null) {
-	raw = Arrays.copyOf([], e-s);
         raw = buf.get(s, raw, 0, e-s);
       } else {
         raw = Arrays.copyOfRange(array, s, e);

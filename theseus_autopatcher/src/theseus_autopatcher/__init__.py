@@ -1,4 +1,5 @@
 import os
+import time
 import argparse
 import subprocess
 import tempfile
@@ -127,11 +128,20 @@ def main():
     else:
         keytool = args.keytool
 
-    runner_f = None
     if args.runner_script is not None and args.runner_script.name.endswith(".py"):
-        runner_f = lambda: subprocess.run(["python3", str(args.runner_script)])
+
+        def runner_f():
+            time.sleep(1)
+            subprocess.run(["python3", str(args.runner_script)])
+
     elif args.runner_script is not None and args.runner_script.name.endswith(".sh"):
-        runner_f = lambda: subprocess.run(["bash", str(args.runner_script)])
+
+        def runner_f():
+            time.sleep(1)
+            subprocess.run(["bash", str(args.runner_script)])
+
+    else:
+        runner_f = None
 
     if zipalign is None:
         print(

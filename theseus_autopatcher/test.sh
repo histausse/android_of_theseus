@@ -21,6 +21,6 @@ pip install "${FOLDER}/dist/theseus_autopatcher-0.1.0-py3-none-any.whl[grodd]"
 adb wait-for-device
 
 #theseus-autopatch -a "${FOLDER}/../test_apks/dynloading/build/test_dynloading.apk" -o /tmp/patched_dynloading.apk -k "${FOLDER}/../test_apks/dynloading/ToyKey.keystore"
-theseus-autopatch -a "${FOLDER}/../test_apks/dyn_and_ref/build/test_dyn_and_ref.apk" -o /tmp/patched_dynloading.apk -k /tmp/kstore.keystore -kp 'P@ssw0rd!' --runner-script "${FOLDER}/../test_apks/dyn_and_ref/tests/test_apk.py"
+theseus-autopatch -a "${FOLDER}/../test_apks/dyn_and_ref/build/test_dyn_and_ref.apk" -o /tmp/patched_dynloading.apk -k /tmp/kstore.keystore -kp 'P@ssw0rd!' --runner-script "${FOLDER}/../test_apks/dyn_and_ref/tests/test_apk.py" --patch "${FOLDER}/../patcher/target/release/patcher"
 
 rm -rf "${TMP}"

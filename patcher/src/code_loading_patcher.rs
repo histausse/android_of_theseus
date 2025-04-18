@@ -30,9 +30,15 @@ pub fn insert_code(
 /// For now, we ignore class collision.
 fn insert_code_naive(apk: &mut Apk, data: &RuntimeData) -> Result<()> {
     for dyn_data in &data.dyn_code_load {
-        for file in &dyn_data.files {
-            let file = File::open(file)?;
-            apk.add_code(file, crate::labeling, false)?;
+        for file_name in &dyn_data.files {
+            let file = File::open(file_name)?;
+            apk.add_code(file, crate::labeling, false)
+                .with_context(|| {
+                    format!(
+                        "Could not add code from {}",
+                        file_name.to_str().unwrap_or("<failed to parse file name>")
+                    )
+                })?;
         }
     }
     Ok(())
@@ -60,9 +66,15 @@ fn insert_code_model_class_loaders(apk: &mut Apk, runtime_data: &mut RuntimeData
     for dyn_data in &runtime_data.dyn_code_load {
         let mut apk = Apk::new();
         let class = dyn_data.classloader_class.clone();
-        for file in &dyn_data.files {
-            let file = File::open(file)?;
-            apk.add_code(file, crate::labeling, false)?;
+        for file_name in &dyn_data.files {
+            let file = File::open(file_name)?;
+            apk.add_code(file, crate::labeling, false)
+                .with_context(|| {
+                    format!(
+                        "Could not add code from {}",
+                        file_name.to_str().unwrap_or("<failed to parse file name>")
+                    )
+                })?;
         }
 
         assert!(

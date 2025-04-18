@@ -1,3 +1,4 @@
+use anyhow::Context;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Cursor, Read};
@@ -5,6 +6,7 @@ use std::path::PathBuf;
 
 use androscalpel::{Apk, Class, IdType};
 
+use androscalpel::SmaliName;
 use patcher::{
     code_loading_patcher::{insert_code, CodePatchingStrategy},
     labeling,
@@ -58,7 +60,21 @@ fn main() {
         if let Some(class) = apk.get_class_mut(&method.class_) {
             //println!("{:#?}", class.direct_methods.keys());
             //println!("{:#?}", class.virtual_methods.keys());
-            let method = class.virtual_methods.get_mut(method).unwrap();
+            let method = if let Some(method) = class.virtual_methods.get_mut(method) {
+                method
+            } else {
+                class
+                    .direct_methods
+                    .get_mut(method)
+                    .with_context(|| {
+                        format!(
+                            "method {} not found in {}",
+                            method.try_to_smali().unwrap(),
+                            class.descriptor.try_to_smali().unwrap()
+                        )
+                    })
+                    .unwrap()
+            };
             transform_method(method, &rt_data, test_class.clone(), &mut test_methods).unwrap();
         }
     }
@@ -95,5 +111,6 @@ fn main() {
         cli.apksigner,
         cli.keypassword.as_deref(),
         None::<HashMap<_, Option<Cursor<&[u8]>>>>,
-    );
+    )
+    .unwrap();
 }
