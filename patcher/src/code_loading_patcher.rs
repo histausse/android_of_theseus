@@ -249,6 +249,8 @@ impl ClassLoader<'_> {
         }
     }
 
+    /// Rename the definition of `cls` in the class loader.
+    ///
     pub fn rename_classdef(&mut self, cls: &IdType) -> Result<()> {
         let id = self.id.clone();
         let mut i = 0;
@@ -310,12 +312,22 @@ impl ClassLoader<'_> {
         r
     }
 
+    /// Return the new name of a type after class renaming.
+    /// This method select the right renamed type by modeling the behavior of
+    /// the android SDK class loaders.
+    /// If the class loader is not a class loader from the android SDK, default
+    /// to the behavior of DexClassLoader: Platform classes have precedence over
+    /// classes defined by a parent classloader that have precedence over classes
+    /// defined by the classloader itself.
     pub fn get_ref_new_name(
         &self,
         ty: &IdType,
         class_loaders: &HashMap<String, Self>,
     ) -> Option<IdType> {
-        // TODO: Check Platform Classes
+        if ty.is_platform_class() {
+            // Platform classes have precedence for all android SDK classloader.
+            return Some(ty);
+        }
         if self.class == *DELEGATE_LAST_CLASS_LOADER {
             if let Some(new_ty) = self.renamed_classes.get(ty) {
                 return Some(new_ty.clone());
