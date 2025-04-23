@@ -14,6 +14,7 @@ struct Cli {
     method: String,
 }
 
+/// Usefull for debugging.
 fn main() {
     env_logger::init();
     let cli = Cli::parse();

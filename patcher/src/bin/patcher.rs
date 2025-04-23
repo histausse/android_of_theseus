@@ -8,7 +8,7 @@ use androscalpel::{Apk, Class, IdType};
 
 use androscalpel::SmaliName;
 use patcher::{
-    code_loading_patcher::{insert_code, CodePatchingStrategy},
+    code_loading_patcher::{CodePatchingStrategy, insert_code},
     labeling,
     reflection_patcher::transform_method,
     runtime_data::RuntimeData, // ReflectionInvokeData, ReflectionClassNewInstData, ReflectionCnstrNewInstData,

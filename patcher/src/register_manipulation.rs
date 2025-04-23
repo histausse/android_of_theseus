@@ -1,5 +1,6 @@
 use androscalpel::{Instruction, RegType};
 use anyhow::{bail, Result};
+use log::debug;
 
 /// Information about the register used.
 ///
@@ -125,10 +126,10 @@ impl RegistersInfo {
                         if regs_type[i + 1] == RegType::Object {
                             save_reg_insns.push(Instruction::MoveObject {
                                 from: (i + 1) as u16,
-                                to: reg_save,
+                                to: reg_save + 1,
                             });
                             restore_reg_insns.push(Instruction::MoveObject {
-                                from: reg_save,
+                                from: reg_save + 1,
                                 to: (i + 1) as u16,
                             });
                         } else if regs_type[i + 1] == RegType::SimpleScalar
@@ -137,10 +138,10 @@ impl RegistersInfo {
                         {
                             save_reg_insns.push(Instruction::Move {
                                 from: (i + 1) as u16,
-                                to: reg_save,
+                                to: reg_save + 1,
                             });
                             restore_reg_insns.push(Instruction::Move {
-                                from: reg_save,
+                                from: reg_save + 1,
                                 to: (i + 1) as u16,
                             });
                         } // else RegType::Undefined, do nothing, just use it
@@ -199,10 +200,10 @@ impl RegistersInfo {
                         if regs_type[i + 1] == RegType::Object {
                             save_reg_insns.push(Instruction::MoveObject {
                                 from: (i + 1) as u16,
-                                to: reg_save,
+                                to: reg_save + 1,
                             });
                             restore_reg_insns.push(Instruction::MoveObject {
-                                from: reg_save,
+                                from: reg_save + 1,
                                 to: (i + 1) as u16,
                             });
                         } else if regs_type[i + 1] == RegType::SimpleScalar
@@ -211,10 +212,10 @@ impl RegistersInfo {
                         {
                             save_reg_insns.push(Instruction::Move {
                                 from: (i + 1) as u16,
-                                to: reg_save,
+                                to: reg_save + 1,
                             });
                             restore_reg_insns.push(Instruction::Move {
-                                from: reg_save,
+                                from: reg_save + 1,
                                 to: (i + 1) as u16,
                             });
                         } // else RegType::Undefined, do nothing, just use it
@@ -226,6 +227,13 @@ impl RegistersInfo {
                     bail!("Could not found enough usable registers to patch the method")
                 }
             }
+            debug!(
+                "Temporarily reserve registers {}-{} and save their values to {}-{}",
+                self.array_val,
+                self.array_val + 1,
+                reg_save,
+                reg_save + 1
+            );
         }
         if let Some(reg_save) = self.array_index_save {
             let mut found = false;
@@ -318,6 +326,10 @@ impl RegistersInfo {
                     bail!("Could not found enough usable registers to patch the method")
                 }
             }
+            debug!(
+                "Temporarily reserve register {} and save it value to {}",
+                self.array_index, reg_save,
+            );
         }
         if let Some(reg_save) = self.array_save {
             let mut found = false;
@@ -402,6 +414,10 @@ impl RegistersInfo {
                     bail!("Could not found enough usable registers to patch the method")
                 }
             }
+            debug!(
+                "Temporarily reserve register {} and save it value to {}",
+                self.array, reg_save,
+            );
         }
         Ok((save_reg_insns, restore_reg_insns))
     }

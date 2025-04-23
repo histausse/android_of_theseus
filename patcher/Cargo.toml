@@ -6,9 +6,9 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-androscalpel = { git = "ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git", rev = "1f2de8b", features = ["code-analysis"] }
-apk_frauder = { git = "ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git", rev = "1f2de8b"}
-#androscalpel = { path = "../../androscalpel/androscalpel", features = ["code-analysis"] }
+androscalpel = { git = "ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git", rev = "110f0c0", features = ["code-analysis", "platform-list"] }
+apk_frauder = { git = "ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git", rev = "110f0c0"}
+#androscalpel = { path = "../../androscalpel/androscalpel", features = ["code-analysis", "platform-list"] }
 #apk_frauder = { path = "../../androscalpel/apk_frauder"}
 anyhow = { version = "1.0.95", features = ["backtrace"] }
 clap = { version = "4.5.27", features = ["derive"] }

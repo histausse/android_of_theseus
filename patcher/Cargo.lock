@@ -35,7 +35,7 @@ dependencies = [
 [[package]]
 name = "androscalpel"
 version = "0.1.0"
-source = "git+ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git?rev=1f2de8b#1f2de8b60daf3c2beba1193174e537175f939e4a"
+source = "git+ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git?rev=110f0c0#110f0c0215337a27b3679c6a8ef447827fdcb658"
 dependencies = [
  "adler",
  "androscalpel_platform_api_list",
@@ -52,12 +52,12 @@ dependencies = [
 [[package]]
 name = "androscalpel_platform_api_list"
 version = "0.1.0"
-source = "git+ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git?rev=1f2de8b#1f2de8b60daf3c2beba1193174e537175f939e4a"
+source = "git+ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git?rev=110f0c0#110f0c0215337a27b3679c6a8ef447827fdcb658"
 
 [[package]]
 name = "androscalpel_serializer"
 version = "0.1.0"
-source = "git+ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git?rev=1f2de8b#1f2de8b60daf3c2beba1193174e537175f939e4a"
+source = "git+ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git?rev=110f0c0#110f0c0215337a27b3679c6a8ef447827fdcb658"
 dependencies = [
  "androscalpel_serializer_derive",
  "log",
@@ -66,7 +66,7 @@ dependencies = [
 [[package]]
 name = "androscalpel_serializer_derive"
 version = "0.1.0"
-source = "git+ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git?rev=1f2de8b#1f2de8b60daf3c2beba1193174e537175f939e4a"
+source = "git+ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git?rev=110f0c0#110f0c0215337a27b3679c6a8ef447827fdcb658"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -135,7 +135,7 @@ dependencies = [
 [[package]]
 name = "apk_frauder"
 version = "0.1.0"
-source = "git+ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git?rev=1f2de8b#1f2de8b60daf3c2beba1193174e537175f939e4a"
+source = "git+ssh://git@gitlab.inria.fr/androidoftheseus/androscalpel.git?rev=110f0c0#110f0c0215337a27b3679c6a8ef447827fdcb658"
 dependencies = [
  "androscalpel_serializer",
  "anyhow",

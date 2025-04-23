@@ -1,7 +1,7 @@
 use androscalpel::SmaliName;
 use androscalpel::{Code, IdMethod, IdMethodType, IdType, Instruction, Method};
 use anyhow::{bail, Context, Result};
-use log::warn;
+use log::{debug, warn};
 
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -35,27 +35,52 @@ pub fn transform_method(
 
     // Get the available registers at the method level
     let mut register_info = RegistersInfo::default();
+    debug!("Pathching method {}", meth.__str__());
     // register_info.array_val is a wide reg, so need at least 0b1110 and 0b1111
     if code.registers_size < 0b1111 {
         register_info.array_val = code.registers_size as u8;
+        debug!(
+            "Use registers {}-{} for patching",
+            register_info.array_val,
+            register_info.array_val + 1
+        );
     } else {
         register_info.array_val = 0;
         register_info.array_val_save = Some(code.registers_size);
+        debug!(
+            "Too many registers, reserve registers {}-{} to save registers later on",
+            code.registers_size,
+            code.registers_size + 1
+        );
     }
     if code.registers_size + 2 <= 0b1111 {
         register_info.array_index = (code.registers_size + 2) as u8;
+        debug!("Use register {} for patching", register_info.array_index);
     } else {
         register_info.array_index = 0;
         register_info.array_index_save = Some(code.registers_size + 2);
+        debug!(
+            "Too many registers, reserve register {} to save registers later on",
+            code.registers_size + 2
+        );
     }
     if code.registers_size + 3 <= 0b1111 {
         register_info.array = (code.registers_size + 3) as u8;
+        debug!("Use register {} for patching", register_info.array);
     } else {
         register_info.array = 0;
         register_info.array_save = Some(code.registers_size + 3);
+        debug!(
+            "Too many registers, reserve register {} to save registers later on",
+            code.registers_size + 3
+        );
     }
     register_info.first_arg = code.registers_size + 4;
-    register_info.nb_arg_reg = 0;
+    debug!(
+        "Will use register from {} on to store method arguments",
+        register_info.first_arg
+    );
+    register_info.nb_arg_reg = 0; // Will be set when saving args
 
     let regs_type = if register_info.array_val_save.is_some()
         || register_info.array_index_save.is_some()
@@ -76,19 +101,36 @@ pub fn transform_method(
                     || method == &*CLASS_NEW_INST
                     || method == &*CNSTR_NEW_INST)
                     && current_addr_label.is_some() =>
-            {
+            'invoke_patch: {
                 let addr_label = current_addr_label.as_ref().unwrap();
-                let (pseudo_insns, move_ret) = get_move_result(iter.clone());
-                if move_ret.is_some() {
-                    while move_ret.as_ref() != iter.next() {}
-                }
+                debug!(
+                    "Patching reflection call of {} at {}:{}",
+                    method.__str__(),
+                    meth.__str__(),
+                    addr_label
+                );
                 let end_label = if method == &*MTH_INVOKE {
                     format!("end_reflection_call_at_{}", addr_label.clone())
                 } else if method == &*CLASS_NEW_INST || method == &*CNSTR_NEW_INST {
                     format!("end_reflection_instanciation_at_{}", addr_label.clone())
                 } else {
-                    panic!("Should not happen!")
+                    // This should not happen, cf the guard on the match
+                    warn!(
+                        "Reflection Data point to an invoke-virtual {}, (expected invocation of {}, {} or {})",
+                        method.__str__(),
+                        MTH_INVOKE.__str__(),
+                        CLASS_NEW_INST.__str__(),
+                        CNSTR_NEW_INST.__str__()
+                    );
+                    new_insns.push(ins.clone());
+                    break 'invoke_patch;
                 };
+
+                let (pseudo_insns, move_ret) = get_move_result(iter.clone());
+                if move_ret.is_some() {
+                    while move_ret.as_ref() != iter.next() {}
+                }
+
                 let mut restore_reg = vec![];
                 if let Some(regs_type) = regs_type.as_ref() {
                     if (method == &*MTH_INVOKE && invoke_data.contains_key(addr_label))
@@ -125,7 +167,7 @@ pub fn transform_method(
                                     new_insns.push(move_ret.clone());
                                 }
                                 current_addr_label = None;
-                                continue;
+                                break 'invoke_patch;
                             }
                         }
                     }
@@ -133,6 +175,12 @@ pub fn transform_method(
                 // TODO: recover from failure
                 if method == &*MTH_INVOKE {
                     for ref_data in invoke_data.get(addr_label).unwrap_or(&vec![]) {
+                        debug!(
+                            "Patching reflection call at {}:{} to {}",
+                            meth.__str__(),
+                            addr_label,
+                            ref_data.method.__str__()
+                        );
                         for ins in get_invoke_block(
                             ref_data,
                             args.as_slice(),
@@ -147,6 +195,12 @@ pub fn transform_method(
                     }
                 } else if method == &*CLASS_NEW_INST {
                     for ref_data in class_new_inst_data.get(addr_label).unwrap_or(&vec![]) {
+                        debug!(
+                            "Patching reflection instantion at {}:{} for {}",
+                            meth.__str__(),
+                            addr_label,
+                            ref_data.constructor.__str__()
+                        );
                         for ins in get_class_new_inst_block(
                             ref_data,
                             args.as_slice(),
@@ -159,6 +213,12 @@ pub fn transform_method(
                     }
                 } else if method == &*CNSTR_NEW_INST {
                     for ref_data in cnstr_new_inst_data.get(addr_label).unwrap_or(&vec![]) {
+                        debug!(
+                            "Patching reflection instantion at {}:{} for {}",
+                            meth.__str__(),
+                            addr_label,
+                            ref_data.constructor.__str__()
+                        );
                         for ins in get_cnstr_new_inst_block(
                             ref_data,
                             args.as_slice(),
@@ -209,30 +269,53 @@ pub fn transform_method(
     let mut i = 0;
     if !meth.is_static {
         // Non static method take 'this' as first argument
+        let new_arg_reg = code.registers_size - ins_size + i + register_info.get_nb_added_reg();
+        let old_arg_reg = code.registers_size - ins_size + i;
+        debug!(
+            "Move `this` argument from new argument register {} to original register {}",
+            new_arg_reg, old_arg_reg
+        );
         code.insns.push(Instruction::MoveObject {
-            from: code.registers_size - ins_size + i + register_info.get_nb_added_reg(),
-            to: code.registers_size - ins_size + i,
+            from: new_arg_reg,
+            to: old_arg_reg,
         });
         i += 1;
     }
     for arg in &meth.descriptor.proto.get_parameters() {
+        let new_arg_reg = code.registers_size - ins_size + i + register_info.get_nb_added_reg();
+        let old_arg_reg = code.registers_size - ins_size + i;
         if arg.is_class() || arg.is_array() {
             code.insns.push(Instruction::MoveObject {
-                from: code.registers_size - ins_size + i + register_info.get_nb_added_reg(),
-                to: code.registers_size - ins_size + i,
+                from: new_arg_reg,
+                to: old_arg_reg,
             });
+            debug!(
+                "Move reference argument from new argument register {} to original register {}",
+                new_arg_reg, old_arg_reg
+            );
             i += 1;
         } else if arg.is_long() || arg.is_double() {
             code.insns.push(Instruction::MoveWide {
-                from: code.registers_size - ins_size + i + register_info.get_nb_added_reg(),
-                to: code.registers_size - ins_size + i,
+                from: new_arg_reg,
+                to: old_arg_reg,
             });
+            debug!(
+                "Move wide argument from new argument registers {}-{} to original registers {}-{}",
+                new_arg_reg,
+                new_arg_reg + 1,
+                old_arg_reg,
+                new_arg_reg + 1
+            );
             i += 2;
         } else {
             code.insns.push(Instruction::Move {
-                from: code.registers_size - ins_size + i + register_info.get_nb_added_reg(),
-                to: code.registers_size - ins_size + i,
+                from: new_arg_reg,
+                to: old_arg_reg,
             });
+            debug!(
+                "Move scalar argument from new argument register {} to original register {}",
+                new_arg_reg, old_arg_reg
+            );
             i += 1;
         }
     }

@@ -1,5 +1,5 @@
 use androscalpel::{IdMethod, IdType};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::sync::LazyLock;
 
 pub(crate) static MTH_INVOKE: LazyLock<IdMethod> = LazyLock::new(|| {

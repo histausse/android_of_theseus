@@ -326,7 +326,7 @@ impl ClassLoader<'_> {
     ) -> Option<IdType> {
         if ty.is_platform_class() {
             // Platform classes have precedence for all android SDK classloader.
-            return Some(ty);
+            return Some(ty.clone());
         }
         if self.class == *DELEGATE_LAST_CLASS_LOADER {
             if let Some(new_ty) = self.renamed_classes.get(ty) {
@@ -341,7 +341,12 @@ impl ClassLoader<'_> {
                     return Some(new_ty);
                 }
             } else {
-                log::warn!("Class Loader {}({}) has parent {}, but parent was not found in class loader list", self.id, self.class.__str__(), parent_id);
+                log::warn!(
+                    "Class Loader {}({}) has parent {}, but parent was not found in class loader list",
+                    self.id,
+                    self.class.__str__(),
+                    parent_id
+                );
             }
         }
         if self.class == *DELEGATE_LAST_CLASS_LOADER {
