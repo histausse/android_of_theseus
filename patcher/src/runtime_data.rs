@@ -12,6 +12,8 @@ pub struct RuntimeData {
     pub dyn_code_load: Vec<DynamicCodeLoadingData>,
     /// The id of the class loader of the apk (the main classloader)
     pub apk_cl_id: Option<String>,
+    /// Additionnal classloader data.
+    pub classloaders: Vec<ClassLoaderData>,
 }
 
 impl RuntimeData {
@@ -86,6 +88,14 @@ impl RuntimeData {
             entry.push(val.clone());
         }
         data
+    }
+
+    /// Get classloader data, indexed by id.
+    pub fn get_classloader_data(&self) -> HashMap<String, ClassLoaderData> {
+        self.classloaders
+            .iter()
+            .map(|data| (data.id.clone(), data.clone()))
+            .collect()
     }
 }
 
@@ -186,4 +196,19 @@ pub struct DynamicCodeLoadingData {
     pub classloader_parent: Option<String>,
     /// The path to the files storing the .dex/.apk/other bytecode loaded.
     pub files: Vec<PathBuf>,
+}
+
+/// Structure storing the runtime information of a classloader.
+#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
+pub struct ClassLoaderData {
+    /// Id of the classloader. This value is unique for *one* run of the apk.
+    pub id: String,
+    /// The Id of the parent classloader if it exists.
+    pub parent_id: Option<String>,
+    /// The string representation of the classloader. Not verry relayable but our best option to
+    /// distinguish classloader at runtime.
+    #[serde(rename = "str")]
+    pub string_representation: String,
+    /// The class of the class loader.
+    pub cname: String, // TODO: IdType,
 }

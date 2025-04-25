@@ -1,5 +1,5 @@
 use androscalpel::{IdMethod, IdType};
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use std::sync::LazyLock;
 
 pub(crate) static MTH_INVOKE: LazyLock<IdMethod> = LazyLock::new(|| {
@@ -98,6 +98,12 @@ pub(crate) static SCAL_TO_OBJ_FLOAT: LazyLock<IdMethod> = LazyLock::new(|| {
 });
 pub(crate) static SCAL_TO_OBJ_DOUBLE: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali("Ljava/lang/Double;->valueOf(D)Ljava/lang/Double;").unwrap()
+});
+pub(crate) static GET_CLASS_LOADER: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/Class;->getClassLoader()Ljava/lang/ClassLoader;").unwrap()
+});
+pub(crate) static TO_STRING: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali("Ljava/lang/Object;->toString()Ljava/lang/String;").unwrap()
 });
 
 pub(crate) static OBJECT_TY: LazyLock<IdType> =

@@ -27,6 +27,7 @@ pub fn transform_method(
     let invoke_data = ref_data.get_invoke_data_for(&meth.descriptor);
     let class_new_inst_data = ref_data.get_class_new_instance_data_for(&meth.descriptor);
     let cnstr_new_inst_data = ref_data.get_cnstr_new_instance_data_for(&meth.descriptor);
+    let classloaders = ref_data.get_classloader_data();
 
     let code = meth
         .code
@@ -189,6 +190,7 @@ pub fn transform_method(
                             move_ret.clone(),
                             tester_methods_class.clone(),
                             tester_methods,
+                            &classloaders,
                         )? {
                             new_insns.push(ins);
                         }
@@ -227,6 +229,7 @@ pub fn transform_method(
                             move_ret.clone(),
                             tester_methods_class.clone(),
                             tester_methods,
+                            &classloaders,
                         )? {
                             new_insns.push(ins);
                         }
@@ -337,8 +340,14 @@ fn gen_tester_method(
     tester_methods_class: IdType,
     method_to_test: IdMethod,
     is_constructor: bool,
+    classloader: Option<&ClassLoaderData>,
 ) -> Result<Method> {
     let mut hasher = DefaultHasher::new();
+    if let Some(classloader) = classloader {
+        classloader.id.hash(&mut hasher);
+    } else {
+        "00000000".hash(&mut hasher);
+    }
     method_to_test.hash(&mut hasher);
     let hash = hasher.finish();
     let m_name: String = (&method_to_test.name).try_into()?;
@@ -522,20 +531,70 @@ fn gen_tester_method(
             //    b: reg_arr_val,
             //    label: no_label.clone(),
             //},
-            // Check Declaring Type
-            Instruction::InvokeVirtual {
-                method: MTH_GET_DEC_CLS.clone(),
-                args: vec![reg_ref_method],
-            },
         ]);
     }
+    // Get Declaring Type
     if is_constructor {
-        // Check Declaring Type
         insns.push(Instruction::InvokeVirtual {
             method: CNSTR_GET_DEC_CLS.clone(),
             args: vec![reg_ref_method],
         });
+    } else {
+        insns.push(Instruction::InvokeVirtual {
+            method: MTH_GET_DEC_CLS.clone(),
+            args: vec![reg_ref_method],
+        });
     }
+    //Check the classloader
+    if let Some(classloader) = classloader {
+        insns.append(&mut vec![
+            // Get the string representation of the classloader.
+            // Not the ideal, but best cross execution classloader identifier we have.
+            Instruction::MoveResultObject {
+                to: reg_arr_idx, // wrong name, but available for tmp val
+            },
+            Instruction::InvokeVirtual {
+                method: GET_CLASS_LOADER.clone(),
+                args: vec![reg_arr_idx as u16],
+            },
+            Instruction::MoveResultObject { to: reg_arr_idx },
+            Instruction::InvokeVirtual {
+                method: TO_STRING.clone(),
+                args: vec![reg_arr_idx as u16],
+            },
+            Instruction::MoveResultObject {
+                to: reg_arr_idx, // wrong name, but available for tmp val
+            },
+            Instruction::ConstString {
+                reg: reg_arr_val,
+                lit: classloader.string_representation.as_str().into(),
+            },
+            Instruction::InvokeVirtual {
+                method: STR_EQ.clone(),
+                args: vec![reg_arr_idx as u16, reg_arr_val as u16],
+            },
+            Instruction::MoveResult {
+                to: reg_arr_idx, // wrong name, but available for tmp val
+            },
+            Instruction::IfEqZ {
+                a: reg_arr_idx,
+                label: no_label.clone(),
+            },
+        ]);
+        // Get Declaring Type
+        if is_constructor {
+            insns.push(Instruction::InvokeVirtual {
+                method: CNSTR_GET_DEC_CLS.clone(),
+                args: vec![reg_ref_method],
+            });
+        } else {
+            insns.push(Instruction::InvokeVirtual {
+                method: MTH_GET_DEC_CLS.clone(),
+                args: vec![reg_ref_method],
+            });
+        }
+    }
+    // Check Declaring Type
     insns.append(&mut vec![
         Instruction::MoveResultObject {
             to: reg_arr_idx, // wrong name, but available for tmp val
@@ -604,6 +663,10 @@ fn gen_tester_method(
 /// - `tester_methods`: the methods used to test if a `java.lang.reflect.Method` is a specific method.
 ///     Methods are indexed by the IdMethod they detect, and have a name derived from the method
 ///     they detect.
+/// - `classloader`: is the runtime data of the classloader that loaded the class defining the
+///     reflected method. If None, the classloader is not tested. Platform classes should probably
+///     not be tested (the bootclassloader can be represented with a null reference, which may
+///     lead to a null pointer exception).
 fn test_method(
     method_obj_reg: u16,
     id_method: IdMethod,
@@ -611,11 +674,17 @@ fn test_method(
     reg_inf: &mut RegistersInfo,
     tester_methods_class: IdType,
     tester_methods: &mut HashMap<IdMethod, Method>,
+    classloader: Option<&ClassLoaderData>,
 ) -> Result<Vec<Instruction>> {
     use std::collections::hash_map::Entry;
     let tst_descriptor = match tester_methods.entry(id_method.clone()) {
         Entry::Occupied(e) => e.into_mut(),
-        Entry::Vacant(e) => e.insert(gen_tester_method(tester_methods_class, id_method, false)?),
+        Entry::Vacant(e) => e.insert(gen_tester_method(
+            tester_methods_class,
+            id_method,
+            false,
+            classloader,
+        )?),
     }
     .descriptor
     .clone();
@@ -658,6 +727,7 @@ fn get_move_result<'a>(
     (vec![], None)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn get_invoke_block(
     ref_data: &ReflectionInvokeData,
     invoke_arg: &[u16],
@@ -666,6 +736,7 @@ fn get_invoke_block(
     move_result: Option<Instruction>,
     tester_methods_class: IdType,
     tester_methods: &mut HashMap<IdMethod, Method>,
+    classloaders: &HashMap<String, ClassLoaderData>,
 ) -> Result<Vec<Instruction>> {
     let (method_obj, obj_inst, arg_arr) = if let &[a, b, c] = invoke_arg {
         (a, b, c)
@@ -691,6 +762,11 @@ fn get_invoke_block(
         ref_data.method.try_to_smali()?,
         ref_data.addr
     );
+    let classloader = if ref_data.method.class_.is_platform_class() {
+        None
+    } else {
+        classloaders.get(&ref_data.method_cl_id)
+    };
     let mut insns = test_method(
         method_obj,
         ref_data.method.clone(),
@@ -698,6 +774,7 @@ fn get_invoke_block(
         reg_inf,
         tester_methods_class,
         tester_methods,
+        classloader,
     )?;
 
     if !ref_data.is_static {
@@ -868,6 +945,7 @@ fn get_args_from_obj_arr(
     insns
 }
 
+#[allow(clippy::too_many_arguments)]
 fn get_cnstr_new_inst_block(
     ref_data: &ReflectionCnstrNewInstData,
     invoke_arg: &[u16],
@@ -876,6 +954,7 @@ fn get_cnstr_new_inst_block(
     move_result: Option<Instruction>,
     tester_methods_class: IdType,
     tester_methods: &mut HashMap<IdMethod, Method>,
+    classloaders: &HashMap<String, ClassLoaderData>,
 ) -> Result<Vec<Instruction>> {
     let (cnst_reg, arg_arr) = if let &[a, b] = invoke_arg {
         (a, b)
@@ -897,6 +976,11 @@ fn get_cnstr_new_inst_block(
         ref_data.addr
     );
 
+    let classloader = if ref_data.constructor.class_.is_platform_class() {
+        None
+    } else {
+        classloaders.get(&ref_data.constructor_cl_id)
+    };
     let mut insns = test_cnstr(
         cnst_reg,
         ref_data.constructor.clone(), // TODO: what if args are renammed?
@@ -904,6 +988,7 @@ fn get_cnstr_new_inst_block(
         reg_inf,
         tester_methods_class,
         tester_methods,
+        classloader,
     )?;
     insns.append(&mut get_args_from_obj_arr(
         &ref_data.constructor.proto.get_parameters(), // TODO: what if args are renammed?
@@ -947,6 +1032,13 @@ fn get_cnstr_new_inst_block(
 /// - `method_obj_reg`: the register containing the `java.lang.reflect.Method`
 /// - `id_method`: the expected [`IdMethod`].
 /// - `abort_label`: the label where to jump if the method does not match `id_method`.
+/// - `tester_methods_class`: the class used to define the methods in `tester_methods`
+/// - `tester_methods`: the methods used to test if a `java.lang.reflect.Method` is a specific method.
+///     Methods are indexed by the IdMethod they detect, and have a name derived from the method
+///     they detect.
+/// - `classloader`: is the runtime data of the classloader that loaded the. If None, the classloader
+///     is not tested. Platform classes should probably not be tested (the bootclassloader can be
+///     represented with a null reference, which may lead to a null pointer exception).
 fn test_cnstr(
     cnst_reg: u16,
     id_method: IdMethod,
@@ -954,11 +1046,17 @@ fn test_cnstr(
     reg_inf: &mut RegistersInfo,
     tester_methods_class: IdType,
     tester_methods: &mut HashMap<IdMethod, Method>,
+    classloader: Option<&ClassLoaderData>,
 ) -> Result<Vec<Instruction>> {
     use std::collections::hash_map::Entry;
     let tst_descriptor = match tester_methods.entry(id_method.clone()) {
         Entry::Occupied(e) => e.into_mut(),
-        Entry::Vacant(e) => e.insert(gen_tester_method(tester_methods_class, id_method, true)?),
+        Entry::Vacant(e) => e.insert(gen_tester_method(
+            tester_methods_class,
+            id_method,
+            true,
+            classloader,
+        )?),
     }
     .descriptor
     .clone();

@@ -1,5 +1,5 @@
 use androscalpel::{Instruction, RegType};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use log::debug;
 
 /// Information about the register used.

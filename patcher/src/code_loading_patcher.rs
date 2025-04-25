@@ -4,6 +4,7 @@ use std::fs::File;
 use androscalpel::{Apk, DexString, IdType, VisitorMut};
 use anyhow::{Context, Result};
 use clap::ValueEnum;
+use log::{debug, info};
 
 use crate::dex_types::DELEGATE_LAST_CLASS_LOADER;
 use crate::runtime_data::RuntimeData;
@@ -262,9 +263,9 @@ impl ClassLoader<'_> {
         };
         let new_name = loop {
             let prefix: DexString = if i == 0 {
-                format!("theseus-dedup/{}/", self.id).into()
+                format!("theseus/dedup/{}/", self.id).into()
             } else {
-                format!("theseus-dedup/{}-{i}/", self.id).into()
+                format!("theseus/dedup/{}/{i}/", self.id).into()
             };
             let new_name = IdType::class_from_dex_string(&prefix.concatenate(&name));
             if self.apk().get_class(&new_name).is_none() {
@@ -305,9 +306,9 @@ impl ClassLoader<'_> {
                 )
             })
             .collect();
-        println!("rename for {}", self.id);
+        info!("types rename for {}", self.id);
         for (old, new) in &r {
-            println!("    {} -> {}", old.__str__(), new.__str__());
+            info!("    {} -> {}", old.__str__(), new.__str__());
         }
         r
     }
@@ -326,18 +327,42 @@ impl ClassLoader<'_> {
     ) -> Option<IdType> {
         if ty.is_platform_class() {
             // Platform classes have precedence for all android SDK classloader.
+            debug!("Class {} is a platform class, no renaming", ty.__str__());
             return Some(ty.clone());
         }
         if self.class == *DELEGATE_LAST_CLASS_LOADER {
             if let Some(new_ty) = self.renamed_classes.get(ty) {
+                debug!(
+                    "Class {} found in {} ({}) in renamed class before delagation, use name {}",
+                    ty.__str__(),
+                    self.class.__str__(),
+                    self.id,
+                    new_ty.__str__()
+                );
                 return Some(new_ty.clone());
             } else if self.apk().get_class(ty).is_some() {
+                debug!(
+                    "Class {} found in {} ({}) in unique classes before delagation, use name {}",
+                    ty.__str__(),
+                    self.class.__str__(),
+                    self.id,
+                    ty.__str__()
+                );
                 return Some(ty.clone());
             }
         }
         if let Some(ref parent_id) = self.parent {
             if let Some(parent) = class_loaders.get(parent_id) {
                 if let Some(new_ty) = parent.get_ref_new_name(ty, class_loaders) {
+                    debug!(
+                        "Class {} found by delegating to parent ({}) \
+                        of {}({}), use name {}",
+                        ty.__str__(),
+                        parent_id,
+                        self.class.__str__(),
+                        self.id,
+                        new_ty.__str__()
+                    );
                     return Some(new_ty);
                 }
             } else {
@@ -350,13 +375,39 @@ impl ClassLoader<'_> {
             }
         }
         if self.class == *DELEGATE_LAST_CLASS_LOADER {
+            debug!(
+                "Class {} not found by {}({})",
+                ty.__str__(),
+                self.class.__str__(),
+                self.id
+            );
             return None;
         }
         if let Some(new_ty) = self.renamed_classes.get(ty) {
+            debug!(
+                "Class {} found in {} ({}) in renamed class after delagation, use name {}",
+                ty.__str__(),
+                self.class.__str__(),
+                self.id,
+                new_ty.__str__()
+            );
             Some(new_ty.clone())
         } else if self.apk().get_class(ty).is_some() {
+            debug!(
+                "Class {} found in {} ({}) in unique classes after delagation, use name {}",
+                ty.__str__(),
+                self.class.__str__(),
+                self.id,
+                ty.__str__()
+            );
             Some(ty.clone())
         } else {
+            debug!(
+                "Class {} not found by {}({})",
+                ty.__str__(),
+                self.class.__str__(),
+                self.id
+            );
             None
         }
     }
