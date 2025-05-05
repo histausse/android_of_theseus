@@ -210,5 +210,5 @@ pub struct ClassLoaderData {
     #[serde(rename = "str")]
     pub string_representation: String,
     /// The class of the class loader.
-    pub cname: String, // TODO: IdType,
+    pub cname: IdType,
 }

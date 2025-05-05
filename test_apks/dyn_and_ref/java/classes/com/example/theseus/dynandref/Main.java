@@ -14,6 +14,14 @@ import java.lang.reflect.Method;
 import com.example.theseus.Utils;
 
 public class Main {
+    static ClassLoader delegateLastClassLoaderParent = null;
+    static ClassLoader delegateLastClassLoader = null;
+    static ClassLoader dexClassLoaderParent = null;
+    static ClassLoader dexClassLoader = null;
+    static ClassLoader inMemoryDexClassLoaderParent = null;
+    static ClassLoader inMemoryDexClassLoader = null;
+    static ClassLoader pathClassLoaderParent = null;
+    static ClassLoader pathClassLoader = null;
 
     public static String getdexfile(Activity ac, String name) throws Exception {
         File dexfile = new File(ac.getCacheDir(), name);
@@ -30,25 +38,65 @@ public class Main {
     }
 
     public static void run(Activity ac, String clname, boolean hasCollision, boolean hasParent, String methodType) {
+        ClassLoader cl = Main.class.getClassLoader();
+        ClassLoader parent;
         try {
         Log.i("THESEUS", "clname: " + clname + ", hasCollision: " + hasCollision + ", hasParent: " + hasParent + ", methodType: " + methodType);
-        ClassLoader cl;
-        ClassLoader parent;
+        String name = "a.dex";
         if (hasParent) {
             parent = Main.class.getClassLoader();
+            name = "b.dex";
         } else {
             parent = null;
         }
         if (clname.equals("DelegateLastClassLoader")) {
-            cl = new DelegateLastClassLoader(getdexfile(ac, "a.dex"), parent);
+            if (parent == null) {
+                if (delegateLastClassLoader == null) {
+                    delegateLastClassLoader = new DelegateLastClassLoader(getdexfile(ac, name), parent);
+                }
+                cl = delegateLastClassLoader;
+            } else {
+                if (delegateLastClassLoaderParent == null) {
+                    delegateLastClassLoaderParent = new DelegateLastClassLoader(getdexfile(ac, name), parent);
+                }
+                cl = delegateLastClassLoaderParent;
+            }
         } else if (clname.equals("DexClassLoader")) {
-            cl = new DexClassLoader(getdexfile(ac, "a.dex"), null, null, parent);
+            if (parent == null) {
+                if (dexClassLoader == null) {
+                    dexClassLoader = new DexClassLoader(getdexfile(ac, name), null, null, parent);
+                }
+                cl = dexClassLoader;
+            } else {
+                if (dexClassLoaderParent == null) {
+                    dexClassLoaderParent = new DexClassLoader(getdexfile(ac, name), null, null, parent);
+                }
+                cl = dexClassLoaderParent;
+            }
         } else if (clname.equals("InMemoryDexClassLoader")) {
-            cl = new InMemoryDexClassLoader(getdexbuffer(ac, "a.dex"), parent);
+            if (parent == null) {
+                if (inMemoryDexClassLoader == null) {
+                    inMemoryDexClassLoader = new InMemoryDexClassLoader(getdexbuffer(ac, name), parent);
+                }
+                cl = inMemoryDexClassLoader;
+            } else {
+                if (inMemoryDexClassLoaderParent == null) {
+                    inMemoryDexClassLoaderParent = new InMemoryDexClassLoader(getdexbuffer(ac, name), parent);
+                }
+                cl = inMemoryDexClassLoaderParent;
+            }
         } else if (clname.equals("PathClassLoader")) {
-            cl = new PathClassLoader(getdexfile(ac, "a.dex"), parent);
-        } else {
-            cl = Main.class.getClassLoader();
+            if (parent == null) {
+                if (pathClassLoader == null) {
+                    pathClassLoader = new PathClassLoader(getdexfile(ac, name), parent);
+                }
+                cl = pathClassLoader;
+            } else {
+                if (pathClassLoaderParent == null) {
+                    pathClassLoaderParent = new PathClassLoader(getdexfile(ac, name), parent);
+                }
+                cl = pathClassLoaderParent;
+            }
         }
 
         Class clz = null;
@@ -194,6 +242,7 @@ public class Main {
             return;
         };
         } catch (Exception e) {
+            Log.e("THESEUS", "class loader name: " + cl.toString());
             Log.e("THESEUS", "error:", e);
         }
     }

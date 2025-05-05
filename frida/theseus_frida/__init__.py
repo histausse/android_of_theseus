@@ -59,6 +59,8 @@ def on_message(message, data, data_storage: dict, file_storage: Path):
     elif message["type"] == "send" and message["payload"]["type"] == "classloader-done":
         global CLASSLOADER_DONE
         CLASSLOADER_DONE = True
+    elif message["type"] == "send" and message["payload"]["type"] == "app_info":
+        handle_app_info(message["payload"]["data"], data_storage)
     else:
         print("[-] message:", message)
 
@@ -232,6 +234,14 @@ def handle_load_dex(data, data_storage: dict, file_storage: Path):
             "classloader_parent": classloader_parent,
         }
     )
+
+
+def handle_app_info(data, data_storage: dict):
+    data["actualSourceDir"] = data["sourceDir"].removesuffix("/base.apk")
+    data_storage["app_info"] = data
+    print("[+] Received app info:")
+    for k in data.keys():
+        print(f"    {k}: {data[k]}")
 
 
 def setup_frida(device_name: str, env: dict[str, str], adb: str) -> frida.core.Device:
@@ -424,7 +434,7 @@ def collect_runtime(
     cls = {}
     for cl in data_storage["classloaders"]:
         # This is verry doubious
-        if cl["cname"] == "dalvik.system.PathClassLoader":
+        if cl["cname"] == "Ldalvik/system/PathClassLoader;":
             zip_files = list(
                 map(
                     lambda s: s.removeprefix('zip file "').removesuffix('"'),

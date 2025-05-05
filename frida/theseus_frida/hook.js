@@ -1,6 +1,7 @@
 const sended_class_loaders = new Set();
 
 function send_class_loader(cl) {
+  get_app_info();
   const System = Java.use('java.lang.System');
   let cl_id = System.identityHashCode(cl);
   while (cl != null && !sended_class_loaders.has(cl_id)) {
@@ -9,7 +10,7 @@ function send_class_loader(cl) {
       "id": cl_id,
       "parent_id": System.identityHashCode(parent_),
       "str": cl.toString(),
-      "cname": cl.$className
+      "cname": cl.getClass().descriptorString()
     }});
     sended_class_loaders.add(cl_id);
     cl = parent_;
@@ -24,6 +25,37 @@ function dump_classloaders() {
     }
     send({"type": "classloader-done"})
   });
+}
+
+let info_sent = false
+function get_app_info() {
+  if (info_sent) {
+    return;
+  }
+  var app = Java.use('android.app.ActivityThread').currentApplication();
+  if (app == null) {
+    return;
+  }
+  var context = app.getApplicationContext();
+  if (context == null) {
+    return;
+  }
+  var appinfo = context.getApplicationInfo();
+  if (appinfo == null) {
+    return;
+  }
+  send({"type": "app_info", "data": {
+    "dataDir": appinfo.dataDir.value,
+    "deviceProtectedDataDir": appinfo.deviceProtectedDataDir.value,
+    "nativeLibraryDir": appinfo.nativeLibraryDir.value,
+    "publicSourceDir": appinfo.publicSourceDir.value,
+    "sharedLibraryFiles": appinfo.sharedLibraryFiles.value,
+    "sourceDir": appinfo.sourceDir.value,
+    "splitNames": appinfo.splitNames.value,
+    "splitPublicSourceDirs": appinfo.splitPublicSourceDirs.value,
+    "splitSourceDirs": appinfo.splitSourceDirs.value,
+  }});
+  info_sent = true;
 }
 
 /* ----- Frida Native Class Loading -----
@@ -116,6 +148,8 @@ Java.perform(() => {
   const Consumer = Java.use('java.util.function.Consumer');
   const System = Java.use('java.lang.System');
   */
+
+
 
   const StackWalker = Java.use('java.lang.StackWalker');
   const StackWalkerOptions = Java.use('java.lang.StackWalker$Option');
@@ -304,7 +338,8 @@ Java.perform(() => {
     let classloader_class = null;
     let classloader_id = System.identityHashCode(loader);
     if (loader !== null) {
-      send_class_loader(loader);
+      // send_class_loader(loader); // Sending names before the end of the initialization 
+	                            // collect the wrong string representation !
       classloader_class = loader.getClass().descriptorString();
     }
     send({

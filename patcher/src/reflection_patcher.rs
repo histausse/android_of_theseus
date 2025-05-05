@@ -8,6 +8,8 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::{dex_types::*, register_manipulation::*, runtime_data::*};
 
+const DEBUG: bool = false;
+
 // Interesting stuff: https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/reg_type.h;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=94
 // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/method_verifier.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=5328
 /// `meth`: the method that make reflectif calls. This is the method to patch.
@@ -340,11 +342,12 @@ fn gen_tester_method(
     tester_methods_class: IdType,
     method_to_test: IdMethod,
     is_constructor: bool,
-    classloader: Option<&ClassLoaderData>,
+    classloader: Option<String>,
+    classloaders: &HashMap<String, ClassLoaderData>,
 ) -> Result<Method> {
     let mut hasher = DefaultHasher::new();
-    if let Some(classloader) = classloader {
-        classloader.id.hash(&mut hasher);
+    if let Some(ref id) = classloader {
+        id.hash(&mut hasher);
     } else {
         "00000000".hash(&mut hasher);
     }
@@ -363,8 +366,9 @@ fn gen_tester_method(
         }
     };
 
+    let method_test_name = format!("check_is_{c_name}_{m_name}_{hash:016x}");
     let descriptor = IdMethod::new(
-        format!("check_is_{c_name}_{m_name}_{hash:016x}").into(),
+        method_test_name.as_str().into(),
         IdMethodType::new(
             IdType::boolean(),
             vec![if is_constructor {
@@ -379,8 +383,11 @@ fn gen_tester_method(
     let no_label: String = "lable_no".into();
     let reg_arr = 0;
     let reg_arr_idx = 1;
-    let reg_arr_val = 2;
-    let reg_ref_method = 3;
+    let reg_tst_val = 2;
+    let reg_def_type = 3;
+    let reg_cmp_val = 4;
+    let reg_class_loader = 5;
+    let reg_ref_method = 6;
     // Check for arg type
     let mut insns = if !is_constructor {
         vec![
@@ -407,12 +414,12 @@ fn gen_tester_method(
             arr: reg_arr,
         },
         Instruction::Const {
-            reg: reg_arr_val,
+            reg: reg_tst_val,
             lit: method_to_test.proto.get_parameters().len() as i32,
         },
         Instruction::IfNe {
             a: reg_arr_idx,
-            b: reg_arr_val,
+            b: reg_tst_val,
             label: no_label.clone(),
         },
     ]);
@@ -428,40 +435,38 @@ fn gen_tester_method(
             lit: i as i32,
         });
         insns.push(Instruction::AGetObject {
-            dest: reg_arr_val,
+            dest: reg_tst_val,
             arr: reg_arr,
             idx: reg_arr_idx,
         });
         insns.push(Instruction::ConstClass {
-            reg: reg_arr_idx, // wrong name, but available for tmp val
+            reg: reg_cmp_val,
             lit: param,
         });
         insns.push(Instruction::InvokeVirtual {
             method: CLT_GET_DESCR_STRING.clone(),
-            args: vec![reg_arr_idx as u16],
+            args: vec![reg_cmp_val as u16],
         });
-        insns.push(Instruction::MoveResultObject { to: reg_arr_idx });
+        insns.push(Instruction::MoveResultObject { to: reg_cmp_val });
         insns.push(Instruction::InvokeVirtual {
             method: CLT_GET_DESCR_STRING.clone(),
-            args: vec![reg_arr_val as u16],
+            args: vec![reg_tst_val as u16],
         });
-        insns.push(Instruction::MoveResultObject { to: reg_arr_val });
+        insns.push(Instruction::MoveResultObject { to: reg_tst_val });
         insns.push(Instruction::InvokeVirtual {
             method: STR_EQ.clone(),
-            args: vec![reg_arr_idx as u16, reg_arr_val as u16],
+            args: vec![reg_cmp_val as u16, reg_tst_val as u16],
         });
-        insns.push(Instruction::MoveResult {
-            to: reg_arr_idx, // wrong name, but available for tmp val
-        });
+        insns.push(Instruction::MoveResult { to: reg_cmp_val });
         insns.push(Instruction::IfEqZ {
-            a: reg_arr_idx,
+            a: reg_cmp_val,
             label: no_label.clone(),
         });
         // Comparing Type does not work when different types share the same name (eg type from
         // another class loader)
         //insns.push(Instruction::IfNe {
         //    a: reg_arr_idx,
-        //    b: reg_arr_val,
+        //    b: reg_tst_val,
         //  label: no_label.clone(),
         //})
     }
@@ -473,22 +478,18 @@ fn gen_tester_method(
                 method: MTH_GET_NAME.clone(),
                 args: vec![reg_ref_method],
             },
-            Instruction::MoveResultObject {
-                to: reg_arr_idx, // wrong name, but available for tmp val
-            },
+            Instruction::MoveResultObject { to: reg_tst_val },
             Instruction::ConstString {
-                reg: reg_arr_val, // wrong name, but available for tmp val
+                reg: reg_cmp_val,
                 lit: method_to_test.name.clone(),
             },
             Instruction::InvokeVirtual {
                 method: STR_EQ.clone(),
-                args: vec![reg_arr_idx as u16, reg_arr_val as u16],
+                args: vec![reg_tst_val as u16, reg_cmp_val as u16],
             },
-            Instruction::MoveResult {
-                to: reg_arr_idx, // wrong name, but available for tmp val
-            },
+            Instruction::MoveResult { to: reg_cmp_val },
             Instruction::IfEqZ {
-                a: reg_arr_idx,
+                a: reg_cmp_val,
                 label: no_label.clone(),
             },
             // Check Return Type
@@ -496,39 +497,35 @@ fn gen_tester_method(
                 method: MTH_GET_RET_TY.clone(),
                 args: vec![reg_ref_method],
             },
-            Instruction::MoveResultObject {
-                to: reg_arr_idx, // wrong name, but available for tmp val
+            Instruction::MoveResultObject { to: reg_tst_val },
+            Instruction::InvokeVirtual {
+                method: CLT_GET_DESCR_STRING.clone(),
+                args: vec![reg_tst_val as u16],
             },
+            Instruction::MoveResultObject { to: reg_tst_val },
             Instruction::ConstClass {
-                reg: reg_arr_val, // wrong name, but available for tmp val
+                reg: reg_cmp_val,
                 lit: method_to_test.proto.get_return_type(),
             },
             Instruction::InvokeVirtual {
                 method: CLT_GET_DESCR_STRING.clone(),
-                args: vec![reg_arr_idx as u16],
+                args: vec![reg_cmp_val as u16],
             },
-            Instruction::MoveResultObject { to: reg_arr_idx },
-            Instruction::InvokeVirtual {
-                method: CLT_GET_DESCR_STRING.clone(),
-                args: vec![reg_arr_val as u16],
-            },
-            Instruction::MoveResultObject { to: reg_arr_val },
+            Instruction::MoveResultObject { to: reg_cmp_val },
             Instruction::InvokeVirtual {
                 method: STR_EQ.clone(),
-                args: vec![reg_arr_idx as u16, reg_arr_val as u16],
+                args: vec![reg_cmp_val as u16, reg_tst_val as u16],
             },
-            Instruction::MoveResult {
-                to: reg_arr_idx, // wrong name, but available for tmp val
-            },
+            Instruction::MoveResult { to: reg_cmp_val },
             Instruction::IfEqZ {
-                a: reg_arr_idx,
+                a: reg_cmp_val,
                 label: no_label.clone(),
             },
             // Comparing Type does not work when different types share the same name (eg type from
             // another class loader)
             //Instruction::IfNe {
             //    a: reg_arr_idx,
-            //    b: reg_arr_val,
+            //    b: reg_tst_val,
             //    label: no_label.clone(),
             //},
         ]);
@@ -545,109 +542,211 @@ fn gen_tester_method(
             args: vec![reg_ref_method],
         });
     }
+    insns.push(Instruction::MoveResultObject { to: reg_def_type });
+
     //Check the classloader
-    if let Some(classloader) = classloader {
+    let mut current_classloader = classloader.as_ref().and_then(|id| classloaders.get(id));
+    let check_class_loader = current_classloader.is_some();
+    if check_class_loader {
         insns.append(&mut vec![
             // Get the string representation of the classloader.
             // Not the ideal, but best cross execution classloader identifier we have.
-            Instruction::MoveResultObject {
-                to: reg_arr_idx, // wrong name, but available for tmp val
-            },
             Instruction::InvokeVirtual {
                 method: GET_CLASS_LOADER.clone(),
-                args: vec![reg_arr_idx as u16],
-            },
-            Instruction::MoveResultObject { to: reg_arr_idx },
-            Instruction::InvokeVirtual {
-                method: TO_STRING.clone(),
-                args: vec![reg_arr_idx as u16],
+                args: vec![reg_def_type as u16],
             },
             Instruction::MoveResultObject {
-                to: reg_arr_idx, // wrong name, but available for tmp val
+                to: reg_class_loader,
             },
+        ]);
+    }
+    while let Some(classloader) = current_classloader {
+        if classloader.cname == *BOOT_CLASS_LOADER_TY {
+            // Ljava/lang/BootClassLoader; is complicated.
+            // It's string rep is "java.lang.BootClassLoader@7e2aeab" where "7e2aeab" is it's
+            // runtime hash id: the name change at each run. We need to compare with its type (it's
+            // ok, it's supposed to be a singleton).
+            // Also, it can be represented at runtime by the null pointer, so we need to accept the
+            // null pointer as a valid value.
+            insns.append(&mut vec![
+                Instruction::IfEqZ {
+                    a: reg_class_loader,
+                    label: "label_end_classloader_test".into(),
+                },
+                Instruction::InvokeVirtual {
+                    method: GET_CLASS.clone(),
+                    args: vec![reg_class_loader as u16],
+                },
+                Instruction::MoveResultObject { to: reg_tst_val },
+                Instruction::InvokeVirtual {
+                    method: CLT_GET_DESCR_STRING.clone(),
+                    args: vec![reg_tst_val as u16],
+                },
+                Instruction::MoveResultObject { to: reg_tst_val },
+                Instruction::ConstClass {
+                    reg: reg_cmp_val,
+                    lit: BOOT_CLASS_LOADER_TY.clone(),
+                },
+                Instruction::InvokeVirtual {
+                    method: CLT_GET_DESCR_STRING.clone(),
+                    args: vec![reg_cmp_val as u16],
+                },
+                Instruction::MoveResultObject { to: reg_cmp_val },
+                Instruction::InvokeVirtual {
+                    method: STR_EQ.clone(),
+                    args: vec![reg_cmp_val as u16, reg_tst_val as u16],
+                },
+                Instruction::MoveResult { to: reg_cmp_val },
+                Instruction::IfEqZ {
+                    a: reg_cmp_val,
+                    label: no_label.clone(),
+                },
+                Instruction::Label {
+                    name: "label_end_classloader_test".into(),
+                },
+            ]);
+            break;
+        }
+        insns.append(&mut vec![
+            Instruction::IfEqZ {
+                a: reg_class_loader,
+                label: no_label.clone(),
+            },
+            Instruction::InvokeVirtual {
+                method: TO_STRING.clone(),
+                args: vec![reg_class_loader as u16],
+            },
+            Instruction::MoveResultObject { to: reg_tst_val },
             Instruction::ConstString {
-                reg: reg_arr_val,
+                reg: reg_cmp_val,
                 lit: classloader.string_representation.as_str().into(),
             },
             Instruction::InvokeVirtual {
                 method: STR_EQ.clone(),
-                args: vec![reg_arr_idx as u16, reg_arr_val as u16],
+                args: vec![reg_cmp_val as u16, reg_tst_val as u16],
             },
-            Instruction::MoveResult {
-                to: reg_arr_idx, // wrong name, but available for tmp val
-            },
+            Instruction::MoveResult { to: reg_cmp_val },
             Instruction::IfEqZ {
-                a: reg_arr_idx,
+                a: reg_cmp_val,
                 label: no_label.clone(),
             },
+            Instruction::InvokeVirtual {
+                method: GET_PARENT.clone(),
+                args: vec![reg_class_loader as u16],
+            },
+            Instruction::MoveResultObject {
+                to: reg_class_loader,
+            },
         ]);
-        // Get Declaring Type
-        if is_constructor {
-            insns.push(Instruction::InvokeVirtual {
-                method: CNSTR_GET_DEC_CLS.clone(),
-                args: vec![reg_ref_method],
-            });
+        let parent_id = classloader.parent_id.clone();
+        // If parent_id is None, the parent is in fact the boot class loader (except for the
+        // boot class loader itself, already handled at the start of the loop).
+        current_classloader = if let Some(ref id) = parent_id {
+            classloaders.get(id)
         } else {
-            insns.push(Instruction::InvokeVirtual {
-                method: MTH_GET_DEC_CLS.clone(),
-                args: vec![reg_ref_method],
-            });
-        }
+            classloaders
+                .values()
+                .find(|cl| cl.cname == *BOOT_CLASS_LOADER_TY)
+        };
     }
+
     // Check Declaring Type
     insns.append(&mut vec![
-        Instruction::MoveResultObject {
-            to: reg_arr_idx, // wrong name, but available for tmp val
-        },
         Instruction::ConstClass {
-            reg: reg_arr_val, // wrong name, but available for tmp val
+            reg: reg_cmp_val,
             lit: method_to_test.class_.clone(),
         },
         Instruction::InvokeVirtual {
             method: CLT_GET_DESCR_STRING.clone(),
-            args: vec![reg_arr_idx as u16],
+            args: vec![reg_cmp_val as u16],
         },
-        Instruction::MoveResultObject { to: reg_arr_idx },
+        Instruction::MoveResultObject { to: reg_cmp_val },
         Instruction::InvokeVirtual {
             method: CLT_GET_DESCR_STRING.clone(),
-            args: vec![reg_arr_val as u16],
+            args: vec![reg_def_type as u16],
         },
-        Instruction::MoveResultObject { to: reg_arr_val },
+        Instruction::MoveResultObject { to: reg_tst_val },
         Instruction::InvokeVirtual {
             method: STR_EQ.clone(),
-            args: vec![reg_arr_idx as u16, reg_arr_val as u16],
+            args: vec![reg_cmp_val as u16, reg_tst_val as u16],
         },
-        Instruction::MoveResult {
-            to: reg_arr_idx, // wrong name, but available for tmp val
-        },
+        Instruction::MoveResult { to: reg_cmp_val },
         Instruction::IfEqZ {
-            a: reg_arr_idx,
+            a: reg_cmp_val,
             label: no_label.clone(),
         },
         // Comparing Type does not work when different types share the same name (eg type from
         // another class loader)
         //Instruction::IfNe {
         //    a: reg_arr_idx,
-        //    b: reg_arr_val,
+        //    b: reg_tst_val,
         //    label: no_label.clone(),
         //},
+    ]);
+    if DEBUG {
+        insns.append(&mut vec![
+            Instruction::ConstString {
+                reg: reg_tst_val,
+                lit: "THESEUS".into(),
+            },
+            Instruction::ConstString {
+                reg: reg_cmp_val,
+                lit: format!(
+                    "T.{method_test_name}() (test of {}) returned true",
+                    method_to_test
+                        .try_to_smali()
+                        .unwrap_or("failed to convert".into())
+                )
+                .into(),
+            },
+            Instruction::InvokeStatic {
+                method: LOG_INFO.clone(),
+                args: vec![reg_tst_val as u16, reg_cmp_val as u16],
+            },
+        ]);
+    }
+    insns.append(&mut vec![
         Instruction::Const {
-            reg: reg_arr_val,
+            reg: reg_cmp_val,
             lit: 1,
         },
-        Instruction::Return { reg: reg_arr_val },
+        Instruction::Return { reg: reg_cmp_val },
         Instruction::Label { name: no_label },
+    ]);
+    if DEBUG {
+        insns.append(&mut vec![
+            Instruction::ConstString {
+                reg: reg_tst_val,
+                lit: "THESEUS".into(),
+            },
+            Instruction::ConstString {
+                reg: reg_cmp_val,
+                lit: format!(
+                    "T.{method_test_name}() (test of {}) returned false",
+                    method_to_test
+                        .try_to_smali()
+                        .unwrap_or("failed to convert".into())
+                )
+                .into(),
+            },
+            Instruction::InvokeStatic {
+                method: LOG_INFO.clone(),
+                args: vec![reg_tst_val as u16, reg_cmp_val as u16],
+            },
+        ]);
+    }
+    insns.append(&mut vec![
         Instruction::Const {
-            reg: reg_arr_val,
+            reg: reg_cmp_val,
             lit: 0,
         },
-        Instruction::Return { reg: reg_arr_val },
+        Instruction::Return { reg: reg_cmp_val },
     ]);
 
     method.is_static = true;
     method.is_final = true;
     method.code = Some(Code::new(
-        4, //registers_size, 3 reg + 1 parameter reg
+        7, //registers_size, 6 reg + 1 parameter reg
         insns,
         Some(vec![Some("meth".into())]), // parameter_names
     ));
@@ -667,6 +766,7 @@ fn gen_tester_method(
 ///     reflected method. If None, the classloader is not tested. Platform classes should probably
 ///     not be tested (the bootclassloader can be represented with a null reference, which may
 ///     lead to a null pointer exception).
+#[allow(clippy::too_many_arguments)]
 fn test_method(
     method_obj_reg: u16,
     id_method: IdMethod,
@@ -674,7 +774,8 @@ fn test_method(
     reg_inf: &mut RegistersInfo,
     tester_methods_class: IdType,
     tester_methods: &mut HashMap<IdMethod, Method>,
-    classloader: Option<&ClassLoaderData>,
+    classloader: Option<String>,
+    classloaders: &HashMap<String, ClassLoaderData>,
 ) -> Result<Vec<Instruction>> {
     use std::collections::hash_map::Entry;
     let tst_descriptor = match tester_methods.entry(id_method.clone()) {
@@ -684,6 +785,7 @@ fn test_method(
             id_method,
             false,
             classloader,
+            classloaders,
         )?),
     }
     .descriptor
@@ -765,7 +867,7 @@ fn get_invoke_block(
     let classloader = if ref_data.method.class_.is_platform_class() {
         None
     } else {
-        classloaders.get(&ref_data.method_cl_id)
+        Some(ref_data.method_cl_id.clone())
     };
     let mut insns = test_method(
         method_obj,
@@ -775,6 +877,7 @@ fn get_invoke_block(
         tester_methods_class,
         tester_methods,
         classloader,
+        classloaders,
     )?;
 
     if !ref_data.is_static {
@@ -979,7 +1082,7 @@ fn get_cnstr_new_inst_block(
     let classloader = if ref_data.constructor.class_.is_platform_class() {
         None
     } else {
-        classloaders.get(&ref_data.constructor_cl_id)
+        Some(ref_data.constructor_cl_id.clone())
     };
     let mut insns = test_cnstr(
         cnst_reg,
@@ -989,6 +1092,7 @@ fn get_cnstr_new_inst_block(
         tester_methods_class,
         tester_methods,
         classloader,
+        classloaders,
     )?;
     insns.append(&mut get_args_from_obj_arr(
         &ref_data.constructor.proto.get_parameters(), // TODO: what if args are renammed?
@@ -1039,6 +1143,7 @@ fn get_cnstr_new_inst_block(
 /// - `classloader`: is the runtime data of the classloader that loaded the. If None, the classloader
 ///     is not tested. Platform classes should probably not be tested (the bootclassloader can be
 ///     represented with a null reference, which may lead to a null pointer exception).
+#[allow(clippy::too_many_arguments)]
 fn test_cnstr(
     cnst_reg: u16,
     id_method: IdMethod,
@@ -1046,7 +1151,8 @@ fn test_cnstr(
     reg_inf: &mut RegistersInfo,
     tester_methods_class: IdType,
     tester_methods: &mut HashMap<IdMethod, Method>,
-    classloader: Option<&ClassLoaderData>,
+    classloader: Option<String>,
+    classloaders: &HashMap<String, ClassLoaderData>,
 ) -> Result<Vec<Instruction>> {
     use std::collections::hash_map::Entry;
     let tst_descriptor = match tester_methods.entry(id_method.clone()) {
@@ -1056,6 +1162,7 @@ fn test_cnstr(
             id_method,
             true,
             classloader,
+            classloaders,
         )?),
     }
     .descriptor

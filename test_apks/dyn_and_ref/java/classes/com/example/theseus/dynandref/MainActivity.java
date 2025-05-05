@@ -49,6 +49,11 @@ public class MainActivity extends Activity {
             out = new FileOutputStream(outFile);
             Utils.copy(in, out);
             outFile.renameTo(new File(getCacheDir(), "a.dex")); // security?
+            in = assetManager.open("a.dex");
+            outFile = new File(getCacheDir(), "b.dex_");
+            out = new FileOutputStream(outFile);
+            Utils.copy(in, out);
+            outFile.renameTo(new File(getCacheDir(), "b.dex"));
         } catch (IOException e) {}
         try {
             in.close();
