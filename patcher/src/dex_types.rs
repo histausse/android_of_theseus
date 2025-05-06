@@ -122,6 +122,12 @@ pub(crate) static DELEGATE_LAST_CLASS_LOADER: LazyLock<IdType> =
 pub(crate) static LOG_INFO: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali("Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I").unwrap()
 });
+pub(crate) static STRING_REPLACE_ALL: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali(
+        "Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+    )
+    .unwrap()
+});
 
 /// Get the method that convert a object to its scalar conterpart (eg `java.lang.Integer` to `int` with
 /// `Ljava/lang/Integer;->intValue()I`)

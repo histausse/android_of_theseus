@@ -9,6 +9,7 @@ import sys
 import tempfile
 import shutil
 import lzma
+import re
 from pathlib import Path
 from typing import TextIO, Any
 from collections.abc import Callable
@@ -85,7 +86,7 @@ def handle_classloader_data(data: dict, data_storage: dict):
     data["id"] = cl_id_to_string(data["id"])
     data["parent_id"] = cl_id_to_string(data["parent_id"])
     print(f"[+] Got classloader {data['id']}({data['str']})")
-    data_storage["classloaders"].append(data)
+    data_storage["classloaders"][data[id]] = data
 
 
 def handle_invoke_data(data, data_storage: dict):
@@ -236,11 +237,19 @@ def handle_load_dex(data, data_storage: dict, file_storage: Path):
     )
 
 
+caml_pattern = re.compile(r"([a-z])([A-Z])")
+
+
+def caml_to_snake_case(string: str) -> str:
+    return caml_pattern.sub(r"\1_\2", string).lower()
+
+
 def handle_app_info(data, data_storage: dict):
     data["actualSourceDir"] = data["sourceDir"].removesuffix("/base.apk")
-    data_storage["app_info"] = data
+    data_storage["app_info"] = {}
     print("[+] Received app info:")
     for k in data.keys():
+        data_storage["app_info"][caml_to_snake_case(k)] = data[k]
         print(f"    {k}: {data[k]}")
 
 
@@ -385,7 +394,8 @@ def collect_runtime(
         "class_new_inst_data": [],
         "cnstr_new_inst_data": [],
         "dyn_code_load": [],
-        "classloaders": [],
+        "classloaders": {},
+        "app_info": {},
     }
 
     script.on(

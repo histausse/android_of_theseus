@@ -13,7 +13,9 @@ pub struct RuntimeData {
     /// The id of the class loader of the apk (the main classloader)
     pub apk_cl_id: Option<String>,
     /// Additionnal classloader data.
-    pub classloaders: Vec<ClassLoaderData>,
+    pub classloaders: HashMap<String, ClassLoaderData>,
+    /// Additionnal application data.
+    pub app_info: AppInfo,
 }
 
 impl RuntimeData {
@@ -88,14 +90,6 @@ impl RuntimeData {
             entry.push(val.clone());
         }
         data
-    }
-
-    /// Get classloader data, indexed by id.
-    pub fn get_classloader_data(&self) -> HashMap<String, ClassLoaderData> {
-        self.classloaders
-            .iter()
-            .map(|data| (data.id.clone(), data.clone()))
-            .collect()
     }
 }
 
@@ -211,4 +205,19 @@ pub struct ClassLoaderData {
     pub string_representation: String,
     /// The class of the class loader.
     pub cname: IdType,
+}
+
+/// Structure storing application information
+#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
+pub struct AppInfo {
+    pub data_dir: String,
+    pub device_protected_data_dir: String,
+    pub native_library_dir: String,
+    pub public_source_dir: String,
+    //pub shared_library_files: Option<Vec<String>>,
+    pub source_dir: String,
+    //pub split_names: Option<Vec<String>>,
+    pub split_public_source_dirs: Option<Vec<String>>,
+    pub split_source_dirs: Option<String>,
+    pub actual_source_dir: String,
 }
