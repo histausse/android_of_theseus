@@ -39,6 +39,7 @@ public class Main {
 
     public static void run(Activity ac, String clname, boolean hasCollision, boolean hasParent, String methodType) {
         ClassLoader cl = Main.class.getClassLoader();
+        Class clz = null;
         ClassLoader parent;
         try {
         Log.i("THESEUS", "clname: " + clname + ", hasCollision: " + hasCollision + ", hasParent: " + hasParent + ", methodType: " + methodType);
@@ -99,7 +100,6 @@ public class Main {
             }
         }
 
-        Class clz = null;
         if (hasCollision) {
             clz = cl.loadClass("com.example.theseus.dynandref.Collider");
         } else {
@@ -243,6 +243,12 @@ public class Main {
         };
         } catch (Exception e) {
             Log.e("THESEUS", "class loader name: " + cl.toString());
+            if (clz != null) {
+                Log.e("THESEUS", "declaring class loader name: " + clz.getClassLoader().toString());
+            }
+            //if methodType.equals("Factory Pattern Interface"){
+            //    clz.getDeclaredConstructor().getDeclaringClass().getClassLoader();
+            //}
             Log.e("THESEUS", "error:", e);
         }
     }

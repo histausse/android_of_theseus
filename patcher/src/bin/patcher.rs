@@ -8,7 +8,7 @@ use androscalpel::{Apk, Class, IdType};
 
 use androscalpel::SmaliName;
 use patcher::{
-    code_loading_patcher::{CodePatchingStrategy, insert_code},
+    code_loading_patcher::{insert_code, CodePatchingStrategy},
     labeling,
     reflection_patcher::transform_method,
     runtime_data::RuntimeData, // ReflectionInvokeData, ReflectionClassNewInstData, ReflectionCnstrNewInstData,
@@ -48,6 +48,7 @@ fn main() {
         .read_to_string(&mut json)
         .unwrap();
     let mut rt_data: RuntimeData = serde_json::from_str(&json).unwrap();
+    rt_data.dedup();
 
     // Dynamic Loading
     insert_code(cli.code_loading_patch_strategy, &mut apk, &mut rt_data).unwrap();

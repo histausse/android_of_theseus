@@ -1,14 +1,14 @@
 use androscalpel::SmaliName;
 use androscalpel::{Code, IdMethod, IdMethodType, IdType, Instruction, Method};
 use anyhow::{bail, Context, Result};
-use log::{debug, warn};
+use log::{debug, error, warn};
 
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::{dex_types::*, register_manipulation::*, runtime_data::*};
 
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 
 // Interesting stuff: https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/reg_type.h;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=94
 // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/method_verifier.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=5328
@@ -22,7 +22,7 @@ pub fn transform_method(
     meth: &mut Method,
     runtime_data: &RuntimeData,
     tester_methods_class: IdType,
-    tester_methods: &mut HashMap<IdMethod, Method>,
+    tester_methods: &mut HashMap<(IdMethod, String), Method>,
 ) -> Result<()> {
     // checking meth.annotations might be usefull at some point
     //println!("{}", meth.descriptor.__str__());
@@ -179,7 +179,7 @@ pub fn transform_method(
                     for ref_data in invoke_data.get(addr_label).unwrap_or(&vec![]) {
                         debug!(
                             "Patching reflection call at {}:{} to {}",
-                            meth.__str__(),
+                            meth.descriptor.__str__(),
                             addr_label,
                             ref_data.method.__str__()
                         );
@@ -200,7 +200,7 @@ pub fn transform_method(
                     for ref_data in class_new_inst_data.get(addr_label).unwrap_or(&vec![]) {
                         debug!(
                             "Patching reflection instantion at {}:{} for {}",
-                            meth.__str__(),
+                            meth.descriptor.__str__(),
                             addr_label,
                             ref_data.constructor.__str__()
                         );
@@ -218,10 +218,36 @@ pub fn transform_method(
                     for ref_data in cnstr_new_inst_data.get(addr_label).unwrap_or(&vec![]) {
                         debug!(
                             "Patching reflection instantion at {}:{} for {}",
-                            meth.__str__(),
+                            meth.descriptor.__str__(),
                             addr_label,
                             ref_data.constructor.__str__()
                         );
+                        if ref_data.constructor
+                            == IdMethod::from_smali(
+                                "Lcom/example/theseus/dynandref/AReflectee;-><init>()V",
+                            )
+                            .unwrap()
+                            &&
+                            meth.descriptor == IdMethod::from_smali(
+                                "Lcom/example/theseus/dynandref/Main;->factoryInterface(Landroid/app/Activity;Ljava/lang/Class;ZBSCIJFD[Ljava/lang/String;)V"
+                            ).unwrap()
+                        {
+                            error!(
+                                "Patching instanciation of {}",
+                                ref_data.constructor.class_.__str__()
+                            );
+                            let mut cl_id = Some(&ref_data.constructor_cl_id);
+                            while let Some(id) = cl_id {
+                                error!("    cl id : {id}");
+                                let cl = runtime_data.classloaders.get(id);
+                                if let Some(cl) = cl {
+                                    error!("    cl str: {}", cl.string_representation.as_str());
+                                    cl_id = cl.parent_id.as_ref();
+                                } else {
+                                    cl_id = None
+                                };
+                            }
+                        }
                         for ins in get_cnstr_new_inst_block(
                             ref_data,
                             args.as_slice(),
@@ -233,6 +259,26 @@ pub fn transform_method(
                             runtime_data,
                         )? {
                             new_insns.push(ins);
+                        }
+                        if ref_data.constructor
+                            == IdMethod::from_smali(
+                                "Lcom/example/theseus/dynandref/AReflectee;-><init>()V",
+                            )
+                            .unwrap()
+                            &&
+                            meth.descriptor == IdMethod::from_smali(
+                                "Lcom/example/theseus/dynandref/Main;->factoryInterface(Landroid/app/Activity;Ljava/lang/Class;ZBSCIJFD[Ljava/lang/String;)V"
+                            ).unwrap()
+                        {
+                            let key = (ref_data.constructor.clone(), ref_data.constructor_cl_id.clone());
+                            error!(
+                                "    tester method: {}",
+                                tester_methods
+                                    .get(&key)
+                                    .unwrap()
+                                    .descriptor
+                                    .__str__()
+                            );
                         }
                     }
                 } else {
@@ -333,6 +379,32 @@ pub fn transform_method(
     // Add the new code
     code.insns.append(&mut new_insns);
     code.registers_size += register_info.get_nb_added_reg();
+    if meth.descriptor
+        == IdMethod::from_smali(
+            "Lcom/example/theseus/dynandref/Main;->\
+             factoryInterface(\
+                Landroid/app/Activity;Ljava/lang/Class;ZBSCIJFD[Ljava/lang/String;\
+             )V",
+        )
+        .unwrap()
+    {
+        for ins in &code.insns {
+            let indent = if let Instruction::Label { .. } = &ins {
+                ""
+            } else {
+                "    "
+            };
+            error!("    {indent}{}", ins.__str__());
+        }
+        use androscalpel::MethodCFG;
+        println!("{}", MethodCFG::new(meth).unwrap().to_dot(true));
+        for (lab, refdatas) in ABORD_LABELS.lock().unwrap().iter() {
+            error!("label {lab}");
+            for refdata in refdatas {
+                error!("    {refdata}");
+            }
+        }
+    }
 
     Ok(())
 }
@@ -365,7 +437,9 @@ fn gen_tester_method(
         }
     };
 
-    let method_test_name = format!("check_is_{c_name}_{m_name}_{hash:016x}");
+    let method_test_name = format!("check_is_{c_name}_{m_name}_{hash:016x}"); // hash depend on
+                                                                              // classloader and
+                                                                              // full method descr
     let descriptor = IdMethod::new(
         method_test_name.as_str().into(),
         IdMethodType::new(
@@ -380,6 +454,38 @@ fn gen_tester_method(
     );
     let mut method = Method::new(descriptor);
     let no_label: String = "lable_no".into();
+    let (
+        no_label_wrong_number_of_arg,
+        no_label_wrong_arg_type,
+        no_label_wrong_meth_name,
+        no_label_wrong_return_type,
+        no_label_wrong_classloader_expected_bootclassloader,
+        no_label_wrong_classloader_got_null,
+        no_label_wrong_classloader,
+        no_label_wrong_def_type,
+    ) = if DEBUG {
+        (
+            "label_no_wrong_number_of_arg".into(),
+            "label_no_wrong_arg_type".into(),
+            "label_no_wrong_meth_name".into(),
+            "label_no_wrong_return_type".into(),
+            "label_no_wrong_classloader_expected_bootclassloader".into(),
+            "label_no_wrong_classloader_got_null".into(),
+            "label_no_wrong_classloader".into(),
+            "label_no_wrong_def_type".into(),
+        )
+    } else {
+        (
+            no_label.clone(),
+            no_label.clone(),
+            no_label.clone(),
+            no_label.clone(),
+            no_label.clone(),
+            no_label.clone(),
+            no_label.clone(),
+            no_label.clone(),
+        )
+    };
     const REG_ARR: u8 = 0;
     const REG_ARR_IDX: u8 = 1;
     const REG_TST_VAL: u8 = 2;
@@ -388,18 +494,70 @@ fn gen_tester_method(
     const REG_CLASS_LOADER: u8 = 5;
     const REG_REGEX: u8 = 6;
     const REG_REPLACE: u8 = 7;
-    const REG_REF_METHOD: u8 = 8;
+    const REG_IF_RES: u8 = 8;
+    const REG_REF_METHOD: u8 = 9;
 
-    fn sanityze_name(reg: u8, app_path: &str) -> Vec<Instruction> {
-        // TODO: InMemory cookie
+    fn standardize_name(reg: u8, old_app_path: &str) -> Vec<Instruction> {
+        let tmp_reg = REG_IF_RES;
         vec![
+            // Get the path of the current APK
+            Instruction::InvokeStatic {
+                method: GET_APP.clone(),
+                args: vec![],
+            },
+            Instruction::MoveResultObject { to: tmp_reg },
+            Instruction::InvokeVirtual {
+                method: GET_APP_INFO.clone(),
+                args: vec![tmp_reg as u16],
+            },
+            Instruction::MoveResultObject { to: tmp_reg },
+            Instruction::IGetObject {
+                to: tmp_reg,
+                obj: tmp_reg,
+                field: APP_INFO_SOURCE_DIR.clone(),
+            },
+            // Remove the "/base.apk" at the end of the path
             Instruction::ConstString {
                 reg: REG_REGEX,
-                lit: app_path.into(),
+                lit: "/base\\.apk$".into(),
             },
             Instruction::ConstString {
                 reg: REG_REPLACE,
+                lit: "".into(),
+            },
+            Instruction::InvokeVirtual {
+                method: STRING_REPLACE_ALL.clone(),
+                args: vec![tmp_reg as u16, REG_REGEX as u16, REG_REPLACE as u16],
+            },
+            Instruction::MoveResultObject { to: REG_REGEX },
+            // replace current app path in name
+            Instruction::ConstString {
+                reg: REG_REPLACE,
                 lit: "APP_PATH".into(),
+            },
+            Instruction::InvokeVirtual {
+                method: STRING_REPLACE_ALL.clone(),
+                args: vec![reg as u16, REG_REGEX as u16, REG_REPLACE as u16],
+            },
+            Instruction::MoveResultObject { to: reg },
+            // replace the old app path in name
+            Instruction::ConstString {
+                reg: REG_REGEX,
+                lit: old_app_path.into(),
+            },
+            Instruction::InvokeVirtual {
+                method: STRING_REPLACE_ALL.clone(),
+                args: vec![reg as u16, REG_REGEX as u16, REG_REPLACE as u16],
+            },
+            Instruction::MoveResultObject { to: reg },
+            // remove the in memory cookie parameters (change from one run to another)
+            Instruction::ConstString {
+                reg: REG_REGEX,
+                lit: "InMemoryDexFile\\[cookie=\\[\\d*, \\d*\\]\\]".into(),
+            },
+            Instruction::ConstString {
+                reg: REG_REPLACE,
+                lit: "InMemoryDexFile".into(),
             },
             Instruction::InvokeVirtual {
                 method: STRING_REPLACE_ALL.clone(),
@@ -441,7 +599,7 @@ fn gen_tester_method(
         Instruction::IfNe {
             a: REG_ARR_IDX,
             b: REG_TST_VAL,
-            label: no_label.clone(),
+            label: no_label_wrong_number_of_arg.clone(),
         },
     ]);
     // then the type of each arg
@@ -478,10 +636,10 @@ fn gen_tester_method(
             method: STR_EQ.clone(),
             args: vec![REG_CMP_VAL as u16, REG_TST_VAL as u16],
         });
-        insns.push(Instruction::MoveResult { to: REG_CMP_VAL });
+        insns.push(Instruction::MoveResult { to: REG_IF_RES });
         insns.push(Instruction::IfEqZ {
-            a: REG_CMP_VAL,
-            label: no_label.clone(),
+            a: REG_IF_RES,
+            label: no_label_wrong_arg_type.clone(),
         });
         // Comparing Type does not work when different types share the same name (eg type from
         // another class loader)
@@ -508,10 +666,10 @@ fn gen_tester_method(
                 method: STR_EQ.clone(),
                 args: vec![REG_TST_VAL as u16, REG_CMP_VAL as u16],
             },
-            Instruction::MoveResult { to: REG_CMP_VAL },
+            Instruction::MoveResult { to: REG_IF_RES },
             Instruction::IfEqZ {
-                a: REG_CMP_VAL,
-                label: no_label.clone(),
+                a: REG_IF_RES,
+                label: no_label_wrong_meth_name.clone(),
             },
             // Check Return Type
             Instruction::InvokeVirtual {
@@ -537,10 +695,10 @@ fn gen_tester_method(
                 method: STR_EQ.clone(),
                 args: vec![REG_CMP_VAL as u16, REG_TST_VAL as u16],
             },
-            Instruction::MoveResult { to: REG_CMP_VAL },
+            Instruction::MoveResult { to: REG_IF_RES },
             Instruction::IfEqZ {
-                a: REG_CMP_VAL,
-                label: no_label.clone(),
+                a: REG_IF_RES,
+                label: no_label_wrong_return_type.clone(),
             },
             // Comparing Type does not work when different types share the same name (eg type from
             // another class loader)
@@ -607,6 +765,7 @@ fn gen_tester_method(
                     args: vec![REG_TST_VAL as u16],
                 },
                 Instruction::MoveResultObject { to: REG_TST_VAL },
+                /* Illegal class access
                 Instruction::ConstClass {
                     reg: REG_CMP_VAL,
                     lit: BOOT_CLASS_LOADER_TY.clone(),
@@ -616,14 +775,19 @@ fn gen_tester_method(
                     args: vec![REG_CMP_VAL as u16],
                 },
                 Instruction::MoveResultObject { to: REG_CMP_VAL },
+                */
+                Instruction::ConstString {
+                    reg: REG_CMP_VAL,
+                    lit: "Ljava/lang/BootClassLoader;".into(), // why not doted repr? android? why?
+                },
                 Instruction::InvokeVirtual {
                     method: STR_EQ.clone(),
                     args: vec![REG_CMP_VAL as u16, REG_TST_VAL as u16],
                 },
-                Instruction::MoveResult { to: REG_CMP_VAL },
+                Instruction::MoveResult { to: REG_IF_RES },
                 Instruction::IfEqZ {
-                    a: REG_CMP_VAL,
-                    label: no_label.clone(),
+                    a: REG_IF_RES,
+                    label: no_label_wrong_classloader_expected_bootclassloader.clone(),
                 },
                 Instruction::Label {
                     name: "label_end_classloader_test".into(),
@@ -634,7 +798,7 @@ fn gen_tester_method(
         insns.append(&mut vec![
             Instruction::IfEqZ {
                 a: REG_CLASS_LOADER,
-                label: no_label.clone(),
+                label: no_label_wrong_classloader_got_null.clone(),
             },
             Instruction::InvokeVirtual {
                 method: TO_STRING.clone(),
@@ -646,11 +810,11 @@ fn gen_tester_method(
                 lit: classloader.string_representation.as_str().into(),
             },
         ]);
-        insns.append(&mut sanityze_name(
+        insns.append(&mut standardize_name(
             REG_CMP_VAL,
             &runtime_data.app_info.actual_source_dir,
         ));
-        insns.append(&mut sanityze_name(
+        insns.append(&mut standardize_name(
             REG_TST_VAL,
             &runtime_data.app_info.actual_source_dir,
         ));
@@ -659,10 +823,10 @@ fn gen_tester_method(
                 method: STR_EQ.clone(),
                 args: vec![REG_CMP_VAL as u16, REG_TST_VAL as u16],
             },
-            Instruction::MoveResult { to: REG_CMP_VAL },
+            Instruction::MoveResult { to: REG_IF_RES },
             Instruction::IfEqZ {
-                a: REG_CMP_VAL,
-                label: no_label.clone(),
+                a: REG_IF_RES,
+                label: no_label_wrong_classloader.clone(),
             },
             Instruction::InvokeVirtual {
                 method: GET_PARENT.clone(),
@@ -705,10 +869,10 @@ fn gen_tester_method(
             method: STR_EQ.clone(),
             args: vec![REG_CMP_VAL as u16, REG_TST_VAL as u16],
         },
-        Instruction::MoveResult { to: REG_CMP_VAL },
+        Instruction::MoveResult { to: REG_IF_RES },
         Instruction::IfEqZ {
-            a: REG_CMP_VAL,
-            label: no_label.clone(),
+            a: REG_IF_RES,
+            label: no_label_wrong_def_type.clone(),
         },
         // Comparing Type does not work when different types share the same name (eg type from
         // another class loader)
@@ -746,16 +910,29 @@ fn gen_tester_method(
             lit: 1,
         },
         Instruction::Return { reg: REG_CMP_VAL },
-        Instruction::Label { name: no_label },
     ]);
     if DEBUG {
-        insns.append(&mut vec![
-            Instruction::ConstString {
-                reg: REG_TST_VAL,
+        for label_name in &[
+            &no_label_wrong_number_of_arg,
+            &no_label_wrong_arg_type,
+            &no_label_wrong_meth_name,
+            &no_label_wrong_return_type,
+            &no_label_wrong_classloader_expected_bootclassloader,
+            &no_label_wrong_classloader_got_null,
+            &no_label_wrong_classloader,
+            &no_label_wrong_def_type,
+        ] {
+            let reg_tag = REG_REGEX;
+            let reg_msg = REG_REPLACE;
+            insns.push(Instruction::Label {
+                name: (*label_name).clone(),
+            });
+            insns.push(Instruction::ConstString {
+                reg: reg_tag,
                 lit: "THESEUS".into(),
-            },
-            Instruction::ConstString {
-                reg: REG_CMP_VAL,
+            });
+            insns.push(Instruction::ConstString {
+                reg: reg_msg,
                 lit: format!(
                     "T.{method_test_name}() (test of {}) returned false",
                     method_to_test
@@ -763,25 +940,162 @@ fn gen_tester_method(
                         .unwrap_or("failed to convert".into())
                 )
                 .into(),
-            },
-            Instruction::InvokeStatic {
+            });
+            insns.push(Instruction::InvokeStatic {
                 method: LOG_INFO.clone(),
-                args: vec![REG_TST_VAL as u16, REG_CMP_VAL as u16],
+                args: vec![reg_tag as u16, reg_msg as u16],
+            });
+            if label_name == &&no_label_wrong_number_of_arg {
+                insns.push(Instruction::ConstString {
+                    reg: reg_msg,
+                    lit: "Wrong number of arg".into(),
+                });
+            } else if label_name == &&no_label_wrong_arg_type {
+                insns.push(Instruction::ConstString {
+                    reg: reg_msg,
+                    lit: "Wrong type of arg".into(),
+                });
+            } else if label_name == &&no_label_wrong_meth_name {
+                insns.push(Instruction::ConstString {
+                    reg: reg_msg,
+                    lit: "Wrong method name".into(),
+                });
+            } else if label_name == &&no_label_wrong_return_type {
+                insns.push(Instruction::ConstString {
+                    reg: reg_msg,
+                    lit: "Wrong return type".into(),
+                });
+            } else if label_name == &&no_label_wrong_classloader_expected_bootclassloader {
+                insns.append(&mut vec![
+                    Instruction::ConstString {
+                        reg: reg_msg,
+                        lit: "Wrong classloader, expected bootclassloader, got: ".into(),
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, reg_msg as u16],
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, REG_TST_VAL as u16],
+                    },
+                    Instruction::ConstString {
+                        reg: reg_msg,
+                        lit: "".into(),
+                    },
+                ]);
+            } else if label_name == &&no_label_wrong_classloader_got_null {
+                insns.push(Instruction::ConstString {
+                    reg: reg_msg,
+                    lit: "Wrong classloader, got null instead of object".into(),
+                });
+            } else if label_name == &&no_label_wrong_classloader {
+                insns.append(&mut vec![
+                    Instruction::ConstString {
+                        reg: reg_msg,
+                        lit: "Wrong classloader".into(),
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, reg_msg as u16],
+                    },
+                    Instruction::ConstString {
+                        reg: reg_msg,
+                        lit: "Expected: ".into(),
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, reg_msg as u16],
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, REG_CMP_VAL as u16],
+                    },
+                    Instruction::ConstString {
+                        reg: reg_msg,
+                        lit: "Got: ".into(),
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, reg_msg as u16],
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, REG_TST_VAL as u16],
+                    },
+                    Instruction::ConstString {
+                        reg: reg_msg,
+                        lit: "".into(),
+                    },
+                ]);
+            } else if label_name == &&no_label_wrong_def_type {
+                insns.append(&mut vec![
+                    Instruction::ConstString {
+                        reg: reg_msg,
+                        lit: "Wrong class".into(),
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, reg_msg as u16],
+                    },
+                    Instruction::ConstString {
+                        reg: reg_msg,
+                        lit: "Expected: ".into(),
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, reg_msg as u16],
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, REG_CMP_VAL as u16],
+                    },
+                    Instruction::ConstString {
+                        reg: reg_msg,
+                        lit: "Got: ".into(),
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, reg_msg as u16],
+                    },
+                    Instruction::InvokeStatic {
+                        method: LOG_INFO.clone(),
+                        args: vec![reg_tag as u16, REG_TST_VAL as u16],
+                    },
+                    Instruction::ConstString {
+                        reg: reg_msg,
+                        lit: "".into(),
+                    },
+                ]);
+            }
+
+            insns.append(&mut vec![
+                Instruction::InvokeStatic {
+                    method: LOG_INFO.clone(),
+                    args: vec![reg_tag as u16, reg_msg as u16],
+                },
+                Instruction::Const {
+                    reg: REG_CMP_VAL,
+                    lit: 0,
+                },
+                Instruction::Return { reg: REG_CMP_VAL },
+            ]);
+        }
+    } else {
+        insns.append(&mut vec![
+            Instruction::Label { name: no_label },
+            Instruction::Const {
+                reg: REG_CMP_VAL,
+                lit: 0,
             },
+            Instruction::Return { reg: REG_CMP_VAL },
         ]);
     }
-    insns.append(&mut vec![
-        Instruction::Const {
-            reg: REG_CMP_VAL,
-            lit: 0,
-        },
-        Instruction::Return { reg: REG_CMP_VAL },
-    ]);
 
     method.is_static = true;
     method.is_final = true;
     method.code = Some(Code::new(
-        7, //registers_size, 6 reg + 1 parameter reg
+        10, //registers_size, 9 reg + 1 parameter reg
         insns,
         Some(vec![Some("meth".into())]), // parameter_names
     ));
@@ -808,12 +1122,13 @@ fn test_method(
     abort_label: String,
     reg_inf: &mut RegistersInfo,
     tester_methods_class: IdType,
-    tester_methods: &mut HashMap<IdMethod, Method>,
+    tester_methods: &mut HashMap<(IdMethod, String), Method>,
     classloader: Option<String>,
     runtime_data: &RuntimeData,
 ) -> Result<Vec<Instruction>> {
     use std::collections::hash_map::Entry;
-    let tst_descriptor = match tester_methods.entry(id_method.clone()) {
+    let key = (id_method.clone(), classloader.clone().unwrap_or("".into()));
+    let tst_descriptor = match tester_methods.entry(key) {
         Entry::Occupied(e) => e.into_mut(),
         Entry::Vacant(e) => e.insert(gen_tester_method(
             tester_methods_class,
@@ -872,7 +1187,7 @@ fn get_invoke_block(
     end_label: &str,
     move_result: Option<Instruction>,
     tester_methods_class: IdType,
-    tester_methods: &mut HashMap<IdMethod, Method>,
+    tester_methods: &mut HashMap<(IdMethod, String), Method>,
     runtime_data: &RuntimeData,
 ) -> Result<Vec<Instruction>> {
     let (method_obj, obj_inst, arg_arr) = if let &[a, b, c] = invoke_arg {
@@ -894,11 +1209,18 @@ fn get_invoke_block(
         reg_inf.nb_arg_reg = nb_args as u16 + if ref_data.is_static { 0 } else { 1 };
     }
 
-    let abort_label = format!(
-        "end_static_call_to_{}_at_{:08X}",
-        ref_data.method.try_to_smali()?,
-        ref_data.addr
-    );
+    let abort_label = {
+        // method descriptor in label are hard to debug
+        let name = format!(
+            "end_static_call_to_{}_from_classloader_{}_at_{:08X}",
+            ref_data.method.try_to_smali()?,
+            &ref_data.method_cl_id,
+            ref_data.addr
+        );
+        let mut hasher = DefaultHasher::new();
+        name.hash(&mut hasher);
+        format!("end_static_call_{:x}", hasher.finish())
+    };
     let classloader = if ref_data.method.class_.is_platform_class() {
         None
     } else {
@@ -1083,6 +1405,10 @@ fn get_args_from_obj_arr(
     insns
 }
 
+pub(crate) static ABORD_LABELS: std::sync::LazyLock<
+    std::sync::Mutex<HashMap<String, Vec<ReflectionCnstrNewInstData>>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
+
 #[allow(clippy::too_many_arguments)]
 fn get_cnstr_new_inst_block(
     ref_data: &ReflectionCnstrNewInstData,
@@ -1091,7 +1417,7 @@ fn get_cnstr_new_inst_block(
     end_label: &str,
     move_result: Option<Instruction>,
     tester_methods_class: IdType,
-    tester_methods: &mut HashMap<IdMethod, Method>,
+    tester_methods: &mut HashMap<(IdMethod, String), Method>,
     runtime_data: &RuntimeData,
 ) -> Result<Vec<Instruction>> {
     let (cnst_reg, arg_arr) = if let &[a, b] = invoke_arg {
@@ -1108,11 +1434,22 @@ fn get_cnstr_new_inst_block(
         reg_inf.nb_arg_reg = nb_args as u16 + 1;
     }
 
-    let abort_label = format!(
-        "end_static_instance_with_{}_at_{:08X}",
-        ref_data.constructor.try_to_smali()?,
-        ref_data.addr
-    );
+    let abort_label = {
+        // method descriptor in label are hard to debug
+        let name = format!(
+            "end_static_instance_with_{}_from_classloader_{}_at_{:08X}",
+            ref_data.constructor.try_to_smali()?,
+            &ref_data.constructor_cl_id,
+            ref_data.addr
+        );
+        let mut hasher = DefaultHasher::new();
+        name.hash(&mut hasher);
+        format!("end_static_call_{:x}", hasher.finish())
+    };
+    if ref_data.caller_method == IdMethod::from_smali("Lcom/example/theseus/dynandref/Main;->factoryInterface(Landroid/app/Activity;Ljava/lang/Class;ZBSCIJFD[Ljava/lang/String;)V").unwrap() {
+        ABORD_LABELS.lock().unwrap().entry(abort_label.clone()).or_default().push(ref_data.clone());
+    }
+    error!("abort_label: {abort_label}");
 
     let classloader = if ref_data.constructor.class_.is_platform_class() {
         None
@@ -1185,12 +1522,13 @@ fn test_cnstr(
     abort_label: String,
     reg_inf: &mut RegistersInfo,
     tester_methods_class: IdType,
-    tester_methods: &mut HashMap<IdMethod, Method>,
+    tester_methods: &mut HashMap<(IdMethod, String), Method>,
     classloader: Option<String>,
     runtime_data: &RuntimeData,
 ) -> Result<Vec<Instruction>> {
     use std::collections::hash_map::Entry;
-    let tst_descriptor = match tester_methods.entry(id_method.clone()) {
+    let key = (id_method.clone(), classloader.clone().unwrap_or("".into()));
+    let tst_descriptor = match tester_methods.entry(key) {
         Entry::Occupied(e) => e.into_mut(),
         Entry::Vacant(e) => e.insert(gen_tester_method(
             tester_methods_class,
@@ -1241,11 +1579,18 @@ fn get_class_new_inst_block(
 
     let class_reg = class_reg as u8;
 
-    let abort_label = format!(
-        "end_static_instance_with_{}_at_{:08X}",
-        ref_data.constructor.try_to_smali()?,
-        ref_data.addr
-    );
+    let abort_label = {
+        // method descriptor in label are hard to debug
+        let name = format!(
+            "end_static_instance_with_{}_from_classloader_{}_at_{:08X}",
+            ref_data.constructor.try_to_smali()?,
+            &ref_data.constructor_cl_id,
+            ref_data.addr
+        );
+        let mut hasher = DefaultHasher::new();
+        name.hash(&mut hasher);
+        format!("end_static_call_{:x}", hasher.finish())
+    };
 
     let obj_reg = match move_result {
         Some(Instruction::MoveResultObject { to }) => to,

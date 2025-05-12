@@ -19,6 +19,15 @@ pub struct RuntimeData {
 }
 
 impl RuntimeData {
+    pub fn dedup(&mut self) {
+        self.invoke_data.sort();
+        self.invoke_data.dedup();
+        self.class_new_inst_data.sort();
+        self.class_new_inst_data.dedup();
+        self.cnstr_new_inst_data.sort();
+        self.cnstr_new_inst_data.dedup();
+        // TODO; dedup dyn_code_load?
+    }
     /// List all the methods that made reflection calls.
     pub fn get_method_referenced(&self) -> HashSet<IdMethod> {
         self.invoke_data
@@ -95,7 +104,7 @@ impl RuntimeData {
 
 /// Structure storing the runtime information of a reflection call using
 /// `java.lang.reflect.Method.invoke()`.
-#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct ReflectionInvokeData {
     /// The method called by `java.lang.reflect.Method.invoke()` (at runtime)
     pub method: IdMethod,
@@ -125,7 +134,7 @@ impl ReflectionInvokeData {
 
 /// Structure storing the runtime information of a reflection instanciation using
 /// `java.lang.Class.newInstance()`.
-#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct ReflectionClassNewInstData {
     /// The constructor called by `java.lang.Class.newInstance()`
     pub constructor: IdMethod,
@@ -153,7 +162,7 @@ impl ReflectionClassNewInstData {
 
 /// Structure storing the runtime information of a reflection instanciation using
 /// `java.lang.reflect.Constructor.newInstance()`.
-#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct ReflectionCnstrNewInstData {
     /// The constructor calleb by `java.lang.reflect.Constructor.newInstance()`
     pub constructor: IdMethod,
@@ -169,6 +178,26 @@ pub struct ReflectionCnstrNewInstData {
     pub renamed_caller_method: Option<IdMethod>,
     /// Address where the call to `java.lang.Class.newInstance()` was made in `caller_method`.
     pub addr: usize,
+}
+
+impl std::fmt::Display for ReflectionCnstrNewInstData {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "RefCnstr {{ constructor: {} ({}), renamed: {}, caller: {} ({}), renamed_caller: {}, addr: 0x{:x} }}",
+            self.constructor.__str__(),
+            self.constructor_cl_id,
+            self.renamed_constructor
+                .as_ref()
+                .map(|id| id.__str__())
+                .as_deref()
+                .unwrap_or("None"),
+                self.caller_method.__str__(),self.caller_cl_id, self.renamed_caller_method.as_ref()
+                .map(|id| id.__str__())
+                .as_deref()
+                .unwrap_or("None"), self.addr
+        )
+    }
 }
 
 impl ReflectionCnstrNewInstData {

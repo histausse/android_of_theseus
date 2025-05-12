@@ -1,4 +1,4 @@
-use androscalpel::{IdMethod, IdType};
+use androscalpel::{IdField, IdMethod, IdType};
 use anyhow::{bail, Result};
 use std::sync::LazyLock;
 
@@ -127,6 +127,23 @@ pub(crate) static STRING_REPLACE_ALL: LazyLock<IdMethod> = LazyLock::new(|| {
         "Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
     )
     .unwrap()
+});
+
+pub(crate) static GET_APP: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali(
+        "Landroid/app/ActivityThread;->currentApplication()Landroid/app/Application;",
+    )
+    .unwrap()
+});
+pub(crate) static GET_APP_INFO: LazyLock<IdMethod> = LazyLock::new(|| {
+    IdMethod::from_smali(
+        "Landroid/content/Context;->getApplicationInfo()Landroid/content/pm/ApplicationInfo;",
+    )
+    .unwrap()
+});
+pub(crate) static APP_INFO_SOURCE_DIR: LazyLock<IdField> = LazyLock::new(|| {
+    IdField::from_smali("Landroid/content/pm/ApplicationInfo;->sourceDir:Ljava/lang/String;")
+        .unwrap()
 });
 
 /// Get the method that convert a object to its scalar conterpart (eg `java.lang.Integer` to `int` with

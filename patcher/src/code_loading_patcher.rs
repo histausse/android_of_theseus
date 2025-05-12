@@ -58,7 +58,7 @@ fn insert_code_model_class_loaders(apk: &mut Apk, runtime_data: &mut RuntimeData
         ClassLoader {
             id: main_cl_id.clone(),
             parent: None,
-            class: IdType::from_smali("Ljava/lang/Boolean;").unwrap(),
+            class: IdType::from_smali("Ldalvik/system/PathClassLoader;").unwrap(),
             apk: ApkOrRef::Ref(apk),
             renamed_classes: HashMap::new(),
         },
@@ -333,7 +333,7 @@ impl ClassLoader<'_> {
         if self.class == *DELEGATE_LAST_CLASS_LOADER {
             if let Some(new_ty) = self.renamed_classes.get(ty) {
                 debug!(
-                    "Class {} found in {} ({}) in renamed class before delagation, use name {}",
+                    "Class {} found in {} ({}) among renamed class before delagation, use name {}",
                     ty.__str__(),
                     self.class.__str__(),
                     self.id,
@@ -342,7 +342,7 @@ impl ClassLoader<'_> {
                 return Some(new_ty.clone());
             } else if self.apk().get_class(ty).is_some() {
                 debug!(
-                    "Class {} found in {} ({}) in unique classes before delagation, use name {}",
+                    "Class {} found in {} ({}) among unique classes before delagation, use name {}",
                     ty.__str__(),
                     self.class.__str__(),
                     self.id,
@@ -385,7 +385,7 @@ impl ClassLoader<'_> {
         }
         if let Some(new_ty) = self.renamed_classes.get(ty) {
             debug!(
-                "Class {} found in {} ({}) in renamed class after delagation, use name {}",
+                "Class {} found in {} ({}) among renamed class after delagation, use name {}",
                 ty.__str__(),
                 self.class.__str__(),
                 self.id,
@@ -394,7 +394,7 @@ impl ClassLoader<'_> {
             Some(new_ty.clone())
         } else if self.apk().get_class(ty).is_some() {
             debug!(
-                "Class {} found in {} ({}) in unique classes after delagation, use name {}",
+                "Class {} found in {} ({}) among unique classes after delagation, use name {}",
                 ty.__str__(),
                 self.class.__str__(),
                 self.id,

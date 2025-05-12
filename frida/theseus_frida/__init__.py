@@ -86,7 +86,7 @@ def handle_classloader_data(data: dict, data_storage: dict):
     data["id"] = cl_id_to_string(data["id"])
     data["parent_id"] = cl_id_to_string(data["parent_id"])
     print(f"[+] Got classloader {data['id']}({data['str']})")
-    data_storage["classloaders"][data[id]] = data
+    data_storage["classloaders"][data["id"]] = data
 
 
 def handle_invoke_data(data, data_storage: dict):
@@ -442,7 +442,7 @@ def collect_runtime(
     #     elif cls[id_]["cname"] == "java.lang.BootClassLoader":
     #         del cls[id_]
     cls = {}
-    for cl in data_storage["classloaders"]:
+    for cl in data_storage["classloaders"].values():
         # This is verry doubious
         if cl["cname"] == "Ldalvik/system/PathClassLoader;":
             zip_files = list(
