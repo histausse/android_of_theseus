@@ -30,6 +30,13 @@ androzoo() {
 
 worker() {
   for sha in $(cat "${TMP_DIR}/apks/${1}"); do
+    # Check the apk has the right sha256
+    if [ -f "${APK_DIR}/${sha}.apk" ]; then
+      if ! $(echo "${sha} "${APK_DIR}/${sha}.apk"" | sha256sum --check --status); then
+        rm "${APK_DIR}/${sha}.apk"
+      fi
+    fi
+    # Download if not already available
     if [ ! -f "${APK_DIR}/${sha}.apk" ]; then
       echo "Download ${sha}"
       androzoo "${sha}"
