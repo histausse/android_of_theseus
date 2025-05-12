@@ -39,7 +39,7 @@ worker() {
 }
 
 for lst in $(ls "${TMP_DIR}/apks/"); do
-  worker "${lst}"
+  worker "${lst}" &
 done
 
 rm -rf "${TMP_DIR}"
