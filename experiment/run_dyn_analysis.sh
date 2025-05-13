@@ -5,18 +5,20 @@ FOLDER=$(dirname "$(realpath $0)")
 APK_DIR="${1}"
 RES_DIR="${2}"
 
-if [ ! -f "${APK_DIR}" ]; then
+if [ ! -d "${APK_DIR}" ]; then
     echo "Usage: bash ${0} /path/to/apk/dir /path/to/result/dir"
     echo "    /path/to/apk/dir is the folder where to store the application downloaded"
     echo "    /path/to/result/dir is the folder where to store the analysis results"
     exit
 fi
-if [ ! -f "${RES_DIR}" ]; then
+if [ ! -n "${RES_DIR}" ]; then
     echo "Usage: bash ${0} /path/to/apk/dir /path/to/result/dir"
     echo "    /path/to/apk/dir is the folder where to store the application downloaded"
     echo "    /path/to/result/dir is the folder where to store the analysis results"
     exit
 fi
+
+mkdir -p "${RES_DIR}"
 
 TMP_DIR=$(mktemp -d)
 
