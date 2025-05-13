@@ -6,7 +6,7 @@ import subprocess
 import threading
 import argparse
 
-EMULATORS = ["root34-1", "root34-2"]
+EMULATORS = [f"root34-{i}" for i in range(32)]
 ANDROID_IMG = "system-images;android-34;default;x86_64"
 
 if "ANDROID_HOME" in os.environ:
