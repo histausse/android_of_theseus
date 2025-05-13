@@ -189,7 +189,7 @@ def main():
     )
     args = parser.parse_args()
     with args.applist.open("r") as fp:
-        apklist = fp.readlines()
+        apklist = list(map(str.strip, fp.readlines()))
     run(apklist, args.out_folder, args.analysis_script)
 
 
