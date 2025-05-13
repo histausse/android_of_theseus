@@ -13,10 +13,10 @@ def explore_app(
     package: str,
     device: str = "emulator-5554",
     android_sdk: Path | None = None,
-):
+) -> dict:
     if USE_GRODD:
         time.sleep(1)  # let the app load
-        grodd_runner(
+        return grodd_runner(
             "grodd",
             device,
             timeout=300,
@@ -29,9 +29,10 @@ def explore_app(
         print(
             "\033[31mGrodd is not available, you need to explore the app manually\033[0m"
         )
-        manual_exploration()
+        return manual_exploration()
 
 
-def manual_exploration():
+def manual_exploration() -> dict:
     print("==> Press ENTER to end the analysis <==")
     input()
+    return {}

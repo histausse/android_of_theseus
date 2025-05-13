@@ -423,9 +423,11 @@ def collect_runtime(
     # print(f"[*] Classloader list received" + " " * 20)
 
     if apk_explorer is None:
-        explore_app(app, device=device.id, android_sdk=android_sdk_path)
+        exploration_data = explore_app(
+            app, device=device.id, android_sdk=android_sdk_path
+        )
     else:
-        apk_explorer()
+        exploration_data = apk_explorer()
 
     # Try to find the Main class loader
     main_class_loader: str | None = None
@@ -490,6 +492,7 @@ def collect_runtime(
     else:
         main_class_loader = list(cls.keys())[0]
     data_storage["apk_cl_id"] = main_class_loader
+    data_storage["exploration_data"] = exploration_data
 
     json.dump(data_storage, output, indent="  ")
 
