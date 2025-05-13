@@ -153,6 +153,7 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
 
 
 def run(apklist: list[str], out_folder: Path, script: Path):
+    gen_emulators()
     workers = []
     for emu in EMULATORS:
         workers.append(
