@@ -6,7 +6,7 @@ import subprocess
 import threading
 import argparse
 
-EMULATORS = [f"root34-{i}" for i in range(20)]
+EMULATORS = [f"root34-{i}" for i in range(1)]
 ANDROID_IMG = "system-images;android-34;default;x86_64"
 
 if "ANDROID_HOME" in os.environ:
@@ -105,6 +105,8 @@ def del_emulators():
 
 def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
     console_port, adb_port = get_ports(emu)
+    script_env = os.environ.copy()
+    script_env["ANDROID_HOME"] = str(ANDROID_HOME)
     while apklist:
         apk = apklist.pop()
         folder_name = apk.split("/")[-1].removesuffix(".apk")
@@ -127,10 +129,12 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
                 f"{console_port},{adb_port}",
             ]
         )
+        subprocess.run([ADB, "-s", f"emulator-{console_port}", "wait-for-device"])
 
         # Run script
         subprocess.run(
-            ["bash", str(script), f"emulator-{console_port}", apk, str(out_folder)]
+            ["bash", str(script), apk, f"emulator-{console_port}", str(folder)],
+            env=script_env,
         )
 
         # stop emulator

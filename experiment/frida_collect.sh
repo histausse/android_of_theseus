@@ -2,4 +2,12 @@
 
 FOLDER=$(dirname "$(realpath $0)")
 
-"${FOLDER}/venv/bin/collect-runtime-data" --apk "${1}" --device "${2}" --output "${3}/data.json" --dex-dir "${3}"
+APK="${1}"
+DEVICE="${2}"
+OUT_DIR="${3}"
+
+echo "APK=${APK}"
+echo "DEVICE=${DEVICE}"
+echo "OUT_DIR=${OUT_DIR}"
+
+"${FOLDER}/venv/bin/collect-runtime-data" --apk "${APK}" --device "${DEVICE}" --output "${OUT_DIR}/data.json" --dex-dir "${3}"
