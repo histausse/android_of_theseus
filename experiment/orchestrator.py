@@ -6,7 +6,7 @@ import subprocess
 import threading
 import argparse
 
-EMULATORS = [f"root34-{i}" for i in range(1)]
+EMULATORS = [f"root34-{i}" for i in range(4)]
 ANDROID_IMG = "system-images;android-34;default;x86_64"
 
 if "ANDROID_HOME" in os.environ:
@@ -123,6 +123,7 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
         ):
 
             # Start emulator with wipped data
+            print(f"START ANALYSIS: {apk=}, emulator-{console_port}")
             proc = subprocess.Popen(
                 [
                     EMULATOR,
@@ -143,11 +144,23 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
                 stdout=fp_anly_stdout,
                 stderr=fp_anly_stderr,
             )
+            print(f"emulator-{console_port} started")
+            fp_anly_stdout.write(
+                f"START ANALYSIS: {apk=}, emulator-{console_port}, {folder=}"
+            )
+            subprocess.run(
+                [ADB, "devices"],
+                stdout=fp_anly_stdout,
+                stderr=fp_anly_stderr,
+            )
+            print(f"FINISHED ANALYSIS: {apk=}, emulator-{console_port}")
 
             # Run script
             subprocess.run(
                 ["bash", str(script), apk, f"emulator-{console_port}", str(folder)],
                 env=script_env,
+                stdout=fp_anly_stdout,
+                stderr=fp_anly_stderr,
             )
 
             # stop emulator
@@ -167,6 +180,7 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
             if proc.poll() is None:
                 proc.kill()
                 time.sleep(3)
+            print(f"emulator-{console_port} stoped")
 
 
 def run(apklist: list[str], out_folder: Path, script: Path):
