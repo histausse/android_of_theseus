@@ -115,45 +115,58 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
             continue
         folder.mkdir(parents=True)
 
-        # Start emulator with wipped data
-        proc = subprocess.Popen(
-            [
-                EMULATOR,
-                "-avd",
-                emu,
-                "-wipe-data",
-                "-no-window",
-                "-no-metrics",
-                "-debug-init",  # dunno why but sometime needed
-                "-ports",
-                f"{console_port},{adb_port}",
-            ]
-        )
-        subprocess.run([ADB, "-s", f"emulator-{console_port}", "wait-for-device"])
+        with (
+            (folder / "emu.out").open("w") as fp_emu_stdout,
+            (folder / "emu.err").open("w") as fp_emu_stderr,
+            (folder / "analysis.out").open("w") as fp_anly_stdout,
+            (folder / "analysis.err").open("w") as fp_anly_stderr,
+        ):
 
-        # Run script
-        subprocess.run(
-            ["bash", str(script), apk, f"emulator-{console_port}", str(folder)],
-            env=script_env,
-        )
-
-        # stop emulator
-        try:
-            subprocess.run(
+            # Start emulator with wipped data
+            proc = subprocess.Popen(
                 [
-                    ADB,
-                    "-s",
-                    f"emulator-{console_port}",
-                    "emu",
-                    "kill",
+                    EMULATOR,
+                    "-avd",
+                    emu,
+                    "-wipe-data",
+                    "-no-window",
+                    "-no-metrics",
+                    "-debug-init",  # dunno why but sometime needed
+                    "-ports",
+                    f"{console_port},{adb_port}",
                 ],
-                timeout=3,
+                stdout=fp_emu_stdout,
+                stderr=fp_emu_stderr,
             )
-        except subprocess.TimeoutExpired:
-            pass
-        if proc.poll() is None:
-            proc.kill()
-            time.sleep(3)
+            subprocess.run(
+                [ADB, "-s", f"emulator-{console_port}", "wait-for-device"],
+                stdout=fp_anly_stdout,
+                stderr=fp_anly_stderr,
+            )
+
+            # Run script
+            subprocess.run(
+                ["bash", str(script), apk, f"emulator-{console_port}", str(folder)],
+                env=script_env,
+            )
+
+            # stop emulator
+            try:
+                subprocess.run(
+                    [
+                        ADB,
+                        "-s",
+                        f"emulator-{console_port}",
+                        "emu",
+                        "kill",
+                    ],
+                    timeout=3,
+                )
+            except subprocess.TimeoutExpired:
+                pass
+            if proc.poll() is None:
+                proc.kill()
+                time.sleep(3)
 
 
 def run(apklist: list[str], out_folder: Path, script: Path):
