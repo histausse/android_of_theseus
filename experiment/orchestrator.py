@@ -124,30 +124,50 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
 
             # Start emulator with wipped data
             print(f"START ANALYSIS: {apk=}, emulator-{console_port}")
-            proc = subprocess.Popen(
-                [
-                    EMULATOR,
-                    "-avd",
-                    emu,
-                    "-wipe-data",
-                    "-no-window",
-                    "-no-metrics",
-                    "-debug-init",  # dunno why but sometime needed
-                    "-ports",
-                    f"{console_port},{adb_port}",
-                ],
-                stdout=fp_emu_stdout,
-                stderr=fp_emu_stderr,
-            )
-            subprocess.run(
-                [ADB, "-s", f"emulator-{console_port}", "wait-for-device"],
-                stdout=fp_anly_stdout,
-                stderr=fp_anly_stderr,
-            )
+            i = 0
+            started = False
+            while not started:
+                if i != 0 and i % 10 == 0:
+                    print(
+                        f"Warning: tried to start emulator-{console_port} (avd {emu}) for the {i}th time without success"
+                    )
+                proc = subprocess.Popen(
+                    [
+                        EMULATOR,
+                        "-avd",
+                        emu,
+                        "-wipe-data",
+                        "-no-window",
+                        "-no-metrics",
+                        "-debug-init",  # dunno why but sometime needed
+                        "-ports",
+                        f"{console_port},{adb_port}",
+                    ],
+                    stdout=fp_emu_stdout,
+                    stderr=fp_emu_stderr,
+                )
+                subprocess.run(
+                    [ADB, "-s", f"emulator-{console_port}", "wait-for-device"],
+                    stdout=fp_anly_stdout,
+                    stderr=fp_anly_stderr,
+                )
+                j = 0
+                while not started:
+                    started = f"emulator-{console_port}\t device" not in subprocess.run(
+                        [ADB, "devices"], stdout=subprocess.PIPE
+                    ).stdout.decode("utf-8")
+                    if not started:
+                        time.sleep(1)
+                        if j != 0 and j % 10 == 0:
+                            print(
+                                f"emulator-{console_port} has been offline for 10s, restarting it now"
+                            )
+                            proc.kill()
+                            break
+                        j += 1
+                i += 1
             print(f"emulator-{console_port} started")
-            fp_anly_stdout.write(
-                f"START ANALYSIS: {apk=}, emulator-{console_port}, {folder=}"
-            )
+            fp_anly_stdout.write(f"START ANALYSIS: {apk=}, emulator-{console_port}\n")
             subprocess.run(
                 [ADB, "devices"],
                 stdout=fp_anly_stdout,
