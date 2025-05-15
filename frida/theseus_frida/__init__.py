@@ -371,10 +371,19 @@ def collect_runtime(
 
         app = get_apkid(apk)[0]
 
-        if device.enumerate_applications([app]):
-            # Uninstall the APK if it already exist
-            subprocess.run([adb, "uninstall", app], env=env)
-        subprocess.run([adb, "install", "-g", str(apk.absolute())], env=env)
+        i = 0
+        while not device.enumerate_applications([app]):
+            time.sleep(i)
+            subprocess.run([adb, "install", "-r", "-g", str(apk.absolute())], env=env)
+            i += 1
+            if i == 10:
+                print("[!] Failled to install apk")
+                e = RuntimeError("Failled to install apk")
+                e.add_note(f"apk: {app} ({str(apk.absolute())})")
+                e.add_note(
+                    f"installed apk: {' '.join(map(str, device.enumerate_applications()))}"
+                )
+                raise e
 
         with FRIDA_SCRIPT.open("r") as file:
             jsscript = file.read()
