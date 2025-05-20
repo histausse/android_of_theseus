@@ -293,7 +293,7 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
                             break
                         j += 1
                 i += 1
-            print(f"emulator-{console_port} started")
+            print(f"emulator-{console_port} running")
             fp_anly_stdout.write(f"START ANALYSIS: {apk=}, emulator-{console_port}\n")
             subprocess.run(
                 [ADB, "devices"],
@@ -314,6 +314,8 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
                 with (folder / "TIMEOUT").open("w") as fp:
                     fp.write("Process timedout")
                 print(f"TIMEOUT ANALYSIS: {apk=}, emulator-{console_port}")
+            with (folder / "emu").open("w") as fp:
+                fp.write(f"Used emulator {emu}:  emulator-{console_port}")
 
 
 def run(apklist: list[str], out_folder: Path, script: Path):
