@@ -1,6 +1,8 @@
 from pathlib import Path
 
 import os
+import json
+import shutil
 import time
 import subprocess
 import threading
@@ -240,8 +242,21 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
         apk = apklist.pop()
         folder_name = apk.split("/")[-1].removesuffix(".apk")
         folder = out_folder / folder_name
-        if folder.exists():
-            continue
+        if folder.exists() and (folder / "data.json").exists():
+            has_error = False
+            with (folder / "data.json").open() as fp:
+                data = json.load(fp)
+                if "error" in data:
+                    has_error = True
+            if (folder / "TIMEOUT").exists():
+                has_error = True
+            if has_error:
+                print(
+                    f"Previous result for {apk=} found but with error of timeout, remove old result and rerun it"
+                )
+                shutil.rmtree(str(folder))
+            else:
+                continue
         folder.mkdir(parents=True)
 
         with (
