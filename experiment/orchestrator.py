@@ -6,8 +6,9 @@ import subprocess
 import threading
 import argparse
 
-EMULATORS = [f"root34-{i}" for i in range(4)]
+EMULATORS = [f"root34-{i}" for i in range(20)]
 ANDROID_IMG = "system-images;android-34;default;x86_64"
+TIMEOUT = 400
 
 if "ANDROID_HOME" in os.environ:
     ANDROID_HOME = Path(os.environ["ANDROID_HOME"])
@@ -17,6 +18,30 @@ else:
 EMULATOR = str(ANDROID_HOME / "emulator" / "emulator")
 AVDMANAGER = str(ANDROID_HOME / "cmdline-tools" / "latest" / "bin" / "avdmanager")
 ADB = str(ANDROID_HOME / "platform-tools" / "adb")
+
+
+class AdbFailed(RuntimeError):
+    pass
+
+
+def adb_run(emu: str, cmd: list[str], timeout: int | None = None) -> str:
+    """Run an adb command,
+    Warning: don't use this to run a command with long output:
+    will hang due to deadlock on process.run when capturing output"""
+    cmd_l = [ADB, "-s", emu, *cmd]
+    cmd_txt = " ".join(cmd_l)
+    for i in range(3):
+        r = subprocess.run(
+            cmd_l, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout
+        )
+        if b"error: could not connect to TCP port" in r.stderr:
+            print(f"failled to run `{cmd_txt}`: error '{r.stderr.decode('utf-8')}'")
+            time.sleep(i + 1)
+            if i != 2:
+                print("retrying")
+        else:
+            return r.stdout.decode("utf-8")
+    raise AdbFailed("Failed to run `{cmd_txt}`")
 
 
 def get_ports(emu: str) -> tuple[int, int]:
@@ -54,6 +79,7 @@ def gen_emulators():
                     "medium_phone",
                 ]
             )
+            make_snapshot(emu)
 
 
 def del_emulators():
@@ -71,42 +97,145 @@ def del_emulators():
             )
 
 
-# def make_snapshot(folder: Path):
-#    for emu in EMULATORS:
-#        console_port, adb_port = get_ports(emu)
-#        proc = subprocess.Popen(
-#            [
-#                EMULATOR,
-#                "-avd",
-#                emu,
-#                "-no-window",
-#                "-no-metrics",
-#                "-debug-init",
-#                "-logcat",
-#                "*:v",
-#                "-ports",
-#                f"{console_port},{adb_port}",
-#            ]
-#        )
-#        subprocess.run([ADB, "-s", f"emulator-{console_port}", "wait-for-device"])
-#        subprocess.run(
-#            [
-#                ADB,
-#                "-s",
-#                f"emulator-{console_port}",
-#                "emu",
-#                "avd",
-#                "snapshot",
-#                "save",
-#                "baseline",
-#            ]
-#        )
+FRIDA_SETUP_SCRIPT = (
+    Path(__file__).parent.parent / "frida" / "theseus_frida" / "setup_frida.py"
+)
+
+
+def make_snapshot(emu: str):
+    console_port, adb_port = get_ports(emu)
+    # First run with debug stuff, for because android emulator black magic fuckery ? probably ?
+    proc = subprocess.Popen(
+        [
+            EMULATOR,
+            "-avd",
+            emu,
+            "-no-window",
+            "-no-metrics",
+            "-debug-init",
+            "-logcat",
+            "*:v",
+            "-ports",
+            f"{console_port},{adb_port}",
+        ]
+    )
+    adb_run(f"emulator-{console_port}", ["wait-for-device"])
+    time.sleep(10)
+    # stop emulator
+    try:
+        adb_run(f"emulator-{console_port}", ["emu", "kill"], timeout=25)
+        time.sleep(25)
+    except subprocess.TimeoutExpired:
+        pass
+    if proc.poll() is None:
+        proc.kill()
+        time.sleep(3)
+
+    # start the emulator without the debug stuff
+    proc = subprocess.Popen(
+        [
+            EMULATOR,
+            "-avd",
+            emu,
+            "-no-window",
+            "-no-metrics",
+            "-ports",
+            f"{console_port},{adb_port}",
+        ]
+    )
+    adb_run(f"emulator-{console_port}", ["wait-for-device"])
+    time.sleep(1)
+
+    # setup frida, uggly, but meh, at this point
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "setup_frida", str(FRIDA_SETUP_SCRIPT)
+    )
+    assert spec is not None
+    setup_frida = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(setup_frida)
+    setup_frida.setup_frida(f"emulator-{console_port}", os.environ, ADB)
+
+    time.sleep(10)
+    adb_run(
+        f"emulator-{console_port}",
+        [
+            "emu",
+            "avd",
+            "snapshot",
+            "save",
+            "baseline",
+        ],
+    )
+    # stop emulator
+    try:
+        adb_run(
+            f"emulator-{console_port}",
+            [
+                "emu",
+                "kill",
+            ],
+            timeout=25,
+        )
+        time.sleep(25)
+    except subprocess.TimeoutExpired:
+        pass
+    if proc.poll() is None:
+        proc.kill()
+        time.sleep(3)
+
+
+def restore_emu(emu: str, proc: None | subprocess.Popen) -> subprocess.Popen:
+    console_port, adb_port = get_ports(emu)
+    if proc is not None and proc.poll() is None:
+        adb_run(
+            f"emulator-{console_port}",
+            [
+                "emu",
+                "avd",
+                "snapshot",
+                "save",
+                "baseline",
+            ],
+        )
+        time.sleep(3)
+        return proc
+    proc = subprocess.Popen(
+        [
+            EMULATOR,
+            "-avd",
+            emu,
+            "-no-window",
+            "-no-metrics",
+            "-ports",
+            f"{console_port},{adb_port}",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    adb_run(f"emulator-{console_port}", ["wait-for-device"])
+    time.sleep(3)
+    adb_run(
+        f"emulator-{console_port}",
+        [
+            "emu",
+            "avd",
+            "snapshot",
+            "load",
+            "baseline",
+        ],
+    )
+    time.sleep(3)
+    return proc
 
 
 def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
     console_port, adb_port = get_ports(emu)
     script_env = os.environ.copy()
     script_env["ANDROID_HOME"] = str(ANDROID_HOME)
+    proc_emu = restore_emu(emu, None)
     while apklist:
         apk = apklist.pop()
         folder_name = apk.split("/")[-1].removesuffix(".apk")
@@ -116,8 +245,6 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
         folder.mkdir(parents=True)
 
         with (
-            (folder / "emu.out").open("w") as fp_emu_stdout,
-            (folder / "emu.err").open("w") as fp_emu_stderr,
             (folder / "analysis.out").open("w") as fp_anly_stdout,
             (folder / "analysis.err").open("w") as fp_anly_stderr,
         ):
@@ -131,29 +258,14 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
                     print(
                         f"Warning: tried to start emulator-{console_port} (avd {emu}) for the {i}th time without success"
                     )
-                proc = subprocess.Popen(
-                    [
-                        EMULATOR,
-                        "-avd",
-                        emu,
-                        "-wipe-data",
-                        "-no-window",
-                        "-no-metrics",
-                        "-debug-init",  # dunno why but sometime needed
-                        "-ports",
-                        f"{console_port},{adb_port}",
-                    ],
-                    stdout=fp_emu_stdout,
-                    stderr=fp_emu_stderr,
-                )
-                subprocess.run(
-                    [ADB, "-s", f"emulator-{console_port}", "wait-for-device"],
-                    stdout=fp_anly_stdout,
-                    stderr=fp_anly_stderr,
+                proc_emu = restore_emu(emu, proc_emu)
+                adb_run(
+                    f"emulator-{console_port}",
+                    ["wait-for-device"],
                 )
                 j = 0
                 while not started:
-                    started = f"emulator-{console_port}\t device" not in subprocess.run(
+                    started = f"emulator-{console_port}\tdevice" in subprocess.run(
                         [ADB, "devices"], stdout=subprocess.PIPE
                     ).stdout.decode("utf-8")
                     if not started:
@@ -162,7 +274,7 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
                             print(
                                 f"emulator-{console_port} has been offline for 10s, restarting it now"
                             )
-                            proc.kill()
+                            proc_emu.kill()
                             break
                         j += 1
                 i += 1
@@ -173,34 +285,20 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
                 stdout=fp_anly_stdout,
                 stderr=fp_anly_stderr,
             )
-            print(f"FINISHED ANALYSIS: {apk=}, emulator-{console_port}")
-
             # Run script
-            subprocess.run(
-                ["bash", str(script), apk, f"emulator-{console_port}", str(folder)],
-                env=script_env,
-                stdout=fp_anly_stdout,
-                stderr=fp_anly_stderr,
-            )
-
-            # stop emulator
             try:
                 subprocess.run(
-                    [
-                        ADB,
-                        "-s",
-                        f"emulator-{console_port}",
-                        "emu",
-                        "kill",
-                    ],
-                    timeout=3,
+                    ["bash", str(script), apk, f"emulator-{console_port}", str(folder)],
+                    env=script_env,
+                    stdout=fp_anly_stdout,
+                    stderr=fp_anly_stderr,
+                    timeout=TIMEOUT,
                 )
+                print(f"FINISHED ANALYSIS: {apk=}, emulator-{console_port}")
             except subprocess.TimeoutExpired:
-                pass
-            if proc.poll() is None:
-                proc.kill()
-                time.sleep(3)
-            print(f"emulator-{console_port} stoped")
+                with (folder / "TIMEOUT").open("w") as fp:
+                    fp.write("Process timedout")
+                print(f"TIMEOUT ANALYSIS: {apk=}, emulator-{console_port}")
 
 
 def run(apklist: list[str], out_folder: Path, script: Path):

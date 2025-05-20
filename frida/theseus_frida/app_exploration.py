@@ -13,13 +13,14 @@ def explore_app(
     package: str,
     device: str = "emulator-5554",
     android_sdk: Path | None = None,
+    timeout: int | None = None,
 ) -> dict:
     if USE_GRODD:
         time.sleep(1)  # let the app load
         return grodd_runner(
             "grodd",
             device,
-            timeout=300,
+            timeout=timeout,
             package=package,
             android_sdk=android_sdk,
             slowdown=1.0,

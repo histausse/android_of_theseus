@@ -10,4 +10,4 @@ echo "APK=${APK}"
 echo "DEVICE=${DEVICE}"
 echo "OUT_DIR=${OUT_DIR}"
 
-"${FOLDER}/venv/bin/collect-runtime-data" --apk "${APK}" --device "${DEVICE}" --output "${OUT_DIR}/data.json" --dex-dir "${3}"
+"${FOLDER}/venv/bin/collect-runtime-data" --apk "${APK}" --device "${DEVICE}" --output "${OUT_DIR}/data.json" --dex-dir "${3}" --timeout 300

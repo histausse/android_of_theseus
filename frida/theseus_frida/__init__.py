@@ -15,6 +15,7 @@ from typing import TextIO, Any
 from collections.abc import Callable
 
 from .app_exploration import explore_app
+from .setup_frida import setup_frida
 
 import frida  # type: ignore
 from androguard.core.apk import get_apkid  # type: ignore
@@ -24,20 +25,11 @@ logger.remove()  # remove androguard logs
 
 FRIDA_SCRIPT = Path(__file__).parent / "hook.js"
 STACK_CONSUMER_B64 = Path(__file__).parent / "StackConsumer.dex.b64"
-FRIDA_SERVER_BIN = Path(__file__).parent / "frida-server-16.7.4-android-x86_64.xz"
-FRIDA_SERVER_ANDROID_PATH = "/data/local/tmp/frida-server"
 
 
 # The number of bytes used to encode a java hash (from Object.hashCode or System.identiyHashCode)
 # The type is 'int', so it sould be a 32bit signed value?
 HASH_NB_BYTES = 4
-
-
-def spinner(symbs: str = "-\\|/"):
-    while True:
-        for s in symbs:
-            yield s
-
 
 CLASSLOADER_DONE = False
 
@@ -253,7 +245,35 @@ def handle_app_info(data, data_storage: dict):
         print(f"    {k}: {data[k]}")
 
 
-def setup_frida(device_name: str, env: dict[str, str], adb: str) -> frida.core.Device:
+def app_reinstall(
+    device: frida.core.Device, app: str, apk: Path, adb: str, env: dict[str, str]
+):
+    if device.enumerate_applications([app]):
+        subprocess.run([adb, "uninstall", app], env=env)
+    i = 0
+    while not device.enumerate_applications([app]):
+        time.sleep(i)
+        subprocess.run([adb, "install", "-g", str(apk.absolute())], env=env)
+        i += 1
+        if i == 10:
+            print("[!] Failled to install apk")
+            e = RuntimeError("Failled to install apk")
+            e.add_note(f"apk: {app} ({str(apk.absolute())})")
+            e.add_note(
+                f"installed apk: {' '.join(map(str, device.enumerate_applications()))}"
+            )
+            raise e
+
+
+def spinner(symbs: str = "-\\|/"):
+    while True:
+        for s in symbs:
+            yield s
+
+
+def get_frida_device(
+    device_name: str, env: dict[str, str], adb: str
+) -> frida.core.Device:
     if device_name != "":
         device = frida.get_device(device_name)
         env["ANDROID_SERIAL"] = device_name
@@ -266,58 +286,15 @@ def setup_frida(device_name: str, env: dict[str, str], adb: str) -> frida.core.D
         return device
     except frida.ServerNotRunningError:
         pass
-    # Start server
-    proc: subprocess.CompletedProcess[str] | subprocess.CompletedProcess[bytes] = (
-        subprocess.run(
-            [adb, "shell", "whoami"],
-            encoding="utf-8",
-            stdout=subprocess.PIPE,
-            env=env,
-        )
-    )
-    if proc.stdout.strip() != "root":
-        proc = subprocess.run([adb, "root"], env=env)
-        # Rooting adb will disconnect the device
-        if device_name != "":
-            device = frida.get_device(device_name)
-        else:
-            device = frida.get_usb_device()
-    perm = subprocess.run(
-        [adb, "shell", "stat", "-c", "%a", FRIDA_SERVER_ANDROID_PATH],
-        encoding="utf-8",
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=env,
-    ).stdout.strip()
-    need_perm_resset = (perm == "") or perm[0] not in [
-        "1",
-        "3",
-        "5",
-        "7",
-    ]  # int(perm[0]) & 1 == 1
-    if perm == "":
-        with tempfile.TemporaryDirectory() as tmpdname:
-            tmpd = Path(tmpdname)
-            with (
-                lzma.open(str(FRIDA_SERVER_BIN.absolute())) as fin,
-                (tmpd / "frida-server").open("wb") as fout,
-            ):
-                shutil.copyfileobj(fin, fout)
 
-            subprocess.run(
-                [
-                    adb,
-                    "push",
-                    str((tmpd / "frida-server").absolute()),
-                    FRIDA_SERVER_ANDROID_PATH,
-                ],
-                env=env,
-            )
-    if need_perm_resset:
-        subprocess.run(
-            [adb, "shell", "chmod", "755", FRIDA_SERVER_ANDROID_PATH], env=env
-        )
-    subprocess.Popen([adb, "shell", FRIDA_SERVER_ANDROID_PATH], env=env)
+    setup_frida(device_name, env, adb)
+    # setup_frida may disconnect the device
+    if device_name != "":
+        device = frida.get_device(device_name)
+        env["ANDROID_SERIAL"] = device_name
+    else:
+        device = frida.get_usb_device()
+
     # The server take some time to start
     # time.sleep(3)
     t = spinner()
@@ -340,7 +317,18 @@ def collect_runtime(
     adb_path: Path | None = None,
     android_sdk_path: Path | None = None,
     apk_explorer: None | Callable[[], None] = None,
+    timeout: None | int = None,
 ):
+    """Collect runtime data from an apk.
+    - apk: the path off the apk to analyze
+    - device_name: name of the device to use
+    - file_storage: path where to store collected files
+    - output: textio where to write json data
+    - adb_path: path to the adb executable
+    - android_sdk_path: path to the Android SDK folder (usually ~/Android/Sdk)
+    - apk_explorer: callable called to explore the apk
+    - timeout: timeout in s for the exploration of the apk, only used with grodd runner.
+    """
     data_storage: dict[str, Any] = {
         "invoke_data": [],
         "class_new_inst_data": [],
@@ -367,23 +355,11 @@ def collect_runtime(
             print("[!] file_storage must be a directory")
             exit()
 
-        device = setup_frida(device_name, env, adb)
+        device = get_frida_device(device_name, env, adb)
 
         app = get_apkid(apk)[0]
 
-        i = 0
-        while not device.enumerate_applications([app]):
-            time.sleep(i)
-            subprocess.run([adb, "install", "-r", "-g", str(apk.absolute())], env=env)
-            i += 1
-            if i == 10:
-                print("[!] Failled to install apk")
-                e = RuntimeError("Failled to install apk")
-                e.add_note(f"apk: {app} ({str(apk.absolute())})")
-                e.add_note(
-                    f"installed apk: {' '.join(map(str, device.enumerate_applications()))}"
-                )
-                raise e
+        app_reinstall(device, app, apk, adb, env)
 
         with FRIDA_SCRIPT.open("r") as file:
             jsscript = file.read()
@@ -393,7 +369,20 @@ def collect_runtime(
                 file.read().replace("\n", "").strip(),
             )
 
-        pid = device.spawn([app])
+        for i in range(10):
+            try:
+                pid = device.spawn([app])
+            except frida.NotSupportedError as e:
+                if str(e) == "unable to find a front-door activity":
+                    print(f"[!] Failed to start frida ({e}), reinstalling apk")
+                    pid = None
+                    app_reinstall(device, app, apk, adb, env)
+                else:
+                    raise e
+        if pid is None:
+            raise RuntimeError(
+                "Failed to start frida ('unable to find a front-door activity' error)"
+            )
         session = device.attach(pid)
         try:
             script = session.create_script(jsscript)
@@ -432,8 +421,8 @@ def collect_runtime(
         # print(f"[*] Classloader list received" + " " * 20)
 
         if apk_explorer is None:
-            exploration_data = explore_app(
-                app, device=device.id, android_sdk=android_sdk_path
+            exploration_data: dict | None = explore_app(
+                app, device=device.id, android_sdk=android_sdk_path, timeout=timeout
             )
         else:
             exploration_data = apk_explorer()
@@ -542,6 +531,9 @@ def main():
         help="where to store dynamically loaded bytecode",
         type=Path,
     )
+    parser.add_argument(
+        "-t", "--timeout", default=None, type=int, help="timeout for grodd runner"
+    )
     args = parser.parse_args()
     if args.output is None:
         collect_runtime(
@@ -557,4 +549,5 @@ def main():
                 device_name=args.device,
                 file_storage=args.dex_dir,
                 output=fp,
+                timeout=args.timeout,
             )
