@@ -9,7 +9,7 @@ import threading
 import argparse
 import queue
 
-EMULATORS = [f"root34-{i}" for i in range(20)]
+EMULATORS = [f"root34-{i}" for i in range(16)]
 ANDROID_IMG = "system-images;android-34;default;x86_64"
 TIMEOUT = 400
 
