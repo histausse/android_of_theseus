@@ -7,6 +7,7 @@ import time
 import subprocess
 import threading
 import argparse
+import queue
 
 EMULATORS = [f"root34-{i}" for i in range(20)]
 ANDROID_IMG = "system-images;android-34;default;x86_64"
@@ -233,15 +234,17 @@ def restore_emu(emu: str, proc: None | subprocess.Popen) -> subprocess.Popen:
     return proc
 
 
-def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
+def worker(emu: str, apklist: queue.Queue[str], out_folder: Path, script: Path):
     console_port, adb_port = get_ports(emu)
     script_env = os.environ.copy()
     script_env["ANDROID_HOME"] = str(ANDROID_HOME)
     proc_emu = restore_emu(emu, None)
-    while apklist:
-        apk = apklist.pop()
+    while True:
+        apk = apklist.get()
         folder_name = apk.split("/")[-1].removesuffix(".apk")
         folder = out_folder / folder_name
+
+        # Check if XP has already run without error or timeout
         if folder.exists() and (folder / "data.json").exists():
             has_error = False
             with (folder / "data.json").open() as fp:
@@ -256,7 +259,10 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
                 )
                 shutil.rmtree(str(folder))
             else:
+                # We already have a valid result, mark task done and skip xp
+                apklist.task_done()
                 continue
+
         folder.mkdir(parents=True)
 
         with (
@@ -264,8 +270,9 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
             (folder / "analysis.err").open("w") as fp_anly_stderr,
         ):
 
-            # Start emulator with wipped data
             print(f"START ANALYSIS: {apk=}, emulator-{console_port}")
+
+            # Reset the emulator and make sure it is runing
             i = 0
             started = False
             while not started:
@@ -293,13 +300,16 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
                             break
                         j += 1
                 i += 1
+
             print(f"emulator-{console_port} running")
             fp_anly_stdout.write(f"START ANALYSIS: {apk=}, emulator-{console_port}\n")
+            # should help debuging:
             subprocess.run(
                 [ADB, "devices"],
                 stdout=fp_anly_stdout,
                 stderr=fp_anly_stderr,
             )
+
             # Run script
             try:
                 subprocess.run(
@@ -310,24 +320,29 @@ def worker(emu: str, apklist: list[str], out_folder: Path, script: Path):
                     timeout=TIMEOUT,
                 )
                 print(f"FINISHED ANALYSIS: {apk=}, emulator-{console_port}")
+            # If timeout:
             except subprocess.TimeoutExpired:
                 with (folder / "TIMEOUT").open("w") as fp:
                     fp.write("Process timedout")
                 print(f"TIMEOUT ANALYSIS: {apk=}, emulator-{console_port}")
+            # again, for debuging:
             with (folder / "emu").open("w") as fp:
                 fp.write(f"Used emulator {emu}:  emulator-{console_port}")
+        apklist.task_done()
 
 
 def run(apklist: list[str], out_folder: Path, script: Path):
     gen_emulators()
     workers = []
+    q: queue.Queue[str] = queue.Queue()
+    for apk in apklist:
+        q.put(apk)
     for emu in EMULATORS:
         workers.append(
-            threading.Thread(target=lambda: worker(emu, apklist, out_folder, script))
+            threading.Thread(target=lambda: worker(emu, q, out_folder, script))
         )
         workers[-1].start()
-    for w in workers:
-        w.join()
+    q.join()
 
 
 def main():
