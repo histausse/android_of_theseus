@@ -253,8 +253,11 @@ def worker(emu: str, apklist: queue.Queue[str], out_folder: Path, script: Path):
             if folder.exists() and (folder / "data.json").exists():
                 has_error = False
                 with (folder / "data.json").open() as fp:
-                    data = json.load(fp)
-                    if "error" in data:
+                    try:
+                        data = json.load(fp)
+                        if "error" in data:
+                            has_error = True
+                    except json.JSONDecodeError:
                         has_error = True
                 if (folder / "TIMEOUT").exists():
                     has_error = True
