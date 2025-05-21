@@ -8,6 +8,7 @@ import subprocess
 import threading
 import argparse
 import queue
+import datetime
 
 EMULATORS = [f"root34-{i}" for i in range(16)]
 ANDROID_IMG = "system-images;android-34;default;x86_64"
@@ -239,96 +240,116 @@ def worker(emu: str, apklist: queue.Queue[str], out_folder: Path, script: Path):
     script_env = os.environ.copy()
     script_env["ANDROID_HOME"] = str(ANDROID_HOME)
     proc_emu = restore_emu(emu, None)
-    while True:
-        apk = apklist.get()
-        folder_name = apk.split("/")[-1].removesuffix(".apk")
-        folder = out_folder / folder_name
+    marked_done = False
+    try:
+        while True:
+            apk = apklist.get()
+            marked_done = False
+            folder_name = apk.split("/")[-1].removesuffix(".apk")
+            folder = out_folder / folder_name
 
-        # Check if XP has already run without error or timeout
-        if folder.exists() and (folder / "data.json").exists():
-            has_error = False
-            with (folder / "data.json").open() as fp:
-                data = json.load(fp)
-                if "error" in data:
+            # Check if XP has already run without error or timeout
+            if folder.exists() and (folder / "data.json").exists():
+                has_error = False
+                with (folder / "data.json").open() as fp:
+                    data = json.load(fp)
+                    if "error" in data:
+                        has_error = True
+                if (folder / "TIMEOUT").exists():
                     has_error = True
-            if (folder / "TIMEOUT").exists():
-                has_error = True
-            if has_error:
-                print(
-                    f"Previous result for {apk=} found but with error of timeout, remove old result and rerun it"
-                )
-                shutil.rmtree(str(folder))
-            else:
-                # We already have a valid result, mark task done and skip xp
-                apklist.task_done()
-                continue
-
-        folder.mkdir(parents=True)
-
-        with (
-            (folder / "analysis.out").open("w") as fp_anly_stdout,
-            (folder / "analysis.err").open("w") as fp_anly_stderr,
-        ):
-
-            print(f"START ANALYSIS: {apk=}, emulator-{console_port}")
-
-            # Reset the emulator and make sure it is runing
-            i = 0
-            started = False
-            while not started:
-                if i != 0 and i % 10 == 0:
+                if has_error:
                     print(
-                        f"Warning: tried to start emulator-{console_port} (avd {emu}) for the {i}th time without success"
+                        f"Previous result for {apk=} found but with error of timeout, remove old result and rerun it"
                     )
-                proc_emu = restore_emu(emu, proc_emu)
-                adb_run(
-                    f"emulator-{console_port}",
-                    ["wait-for-device"],
-                )
-                j = 0
+                    shutil.rmtree(str(folder))
+                else:
+                    # We already have a valid result, mark task done and skip xp
+                    apklist.task_done()
+                    marked_done = True
+                    continue
+
+            folder.mkdir(parents=True)
+
+            with (
+                (folder / "analysis.out").open("w") as fp_anly_stdout,
+                (folder / "analysis.err").open("w") as fp_anly_stderr,
+            ):
+
+                print(f"START ANALYSIS: {apk=}, emulator-{console_port}")
+
+                # Reset the emulator and make sure it is runing
+                i = 0
+                started = False
                 while not started:
-                    started = f"emulator-{console_port}\tdevice" in subprocess.run(
-                        [ADB, "devices"], stdout=subprocess.PIPE
-                    ).stdout.decode("utf-8")
-                    if not started:
-                        time.sleep(1)
-                        if j != 0 and j % 10 == 0:
-                            print(
-                                f"emulator-{console_port} has been offline for 10s, restarting it now"
-                            )
-                            proc_emu.kill()
-                            break
-                        j += 1
-                i += 1
+                    if i != 0 and i % 10 == 0:
+                        print(
+                            f"Warning: tried to start emulator-{console_port} (avd {emu}) for the {i}th time without success"
+                        )
+                    proc_emu = restore_emu(emu, proc_emu)
+                    adb_run(
+                        f"emulator-{console_port}",
+                        ["wait-for-device"],
+                    )
+                    j = 0
+                    while not started:
+                        started = f"emulator-{console_port}\tdevice" in subprocess.run(
+                            [ADB, "devices"], stdout=subprocess.PIPE
+                        ).stdout.decode("utf-8")
+                        if not started:
+                            time.sleep(1)
+                            if j != 0 and j % 10 == 0:
+                                print(
+                                    f"emulator-{console_port} has been offline for 10s, restarting it now"
+                                )
+                                proc_emu.kill()
+                                break
+                            j += 1
+                    i += 1
 
-            print(f"emulator-{console_port} running")
-            fp_anly_stdout.write(f"START ANALYSIS: {apk=}, emulator-{console_port}\n")
-            # should help debuging:
-            subprocess.run(
-                [ADB, "devices"],
-                stdout=fp_anly_stdout,
-                stderr=fp_anly_stderr,
-            )
-
-            # Run script
-            try:
+                print(f"emulator-{console_port} running")
+                fp_anly_stdout.write(
+                    f"START ANALYSIS: {apk=}, emulator-{console_port}\n"
+                )
+                # should help debuging:
                 subprocess.run(
-                    ["bash", str(script), apk, f"emulator-{console_port}", str(folder)],
-                    env=script_env,
+                    [ADB, "devices"],
                     stdout=fp_anly_stdout,
                     stderr=fp_anly_stderr,
-                    timeout=TIMEOUT,
                 )
-                print(f"FINISHED ANALYSIS: {apk=}, emulator-{console_port}")
-            # If timeout:
-            except subprocess.TimeoutExpired:
-                with (folder / "TIMEOUT").open("w") as fp:
-                    fp.write("Process timedout")
-                print(f"TIMEOUT ANALYSIS: {apk=}, emulator-{console_port}")
-            # again, for debuging:
-            with (folder / "emu").open("w") as fp:
-                fp.write(f"Used emulator {emu}:  emulator-{console_port}")
-        apklist.task_done()
+
+                # Run script
+                try:
+                    subprocess.run(
+                        [
+                            "bash",
+                            str(script),
+                            apk,
+                            f"emulator-{console_port}",
+                            str(folder),
+                        ],
+                        env=script_env,
+                        stdout=fp_anly_stdout,
+                        stderr=fp_anly_stderr,
+                        timeout=TIMEOUT,
+                    )
+                    print(f"FINISHED ANALYSIS: {apk=}, emulator-{console_port}")
+                # If timeout:
+                except subprocess.TimeoutExpired:
+                    with (folder / "TIMEOUT").open("w") as fp:
+                        fp.write("Process timedout")
+                    print(f"TIMEOUT ANALYSIS: {apk=}, emulator-{console_port}")
+                # again, for debuging:
+                with (folder / "emu").open("w") as fp:
+                    fp.write(f"Used emulator {emu}:  emulator-{console_port}")
+            apklist.task_done()
+            marked_done = True
+    except Exception as e:
+        msg = f"[{datetime.datetime.now()}] worker for {emu} (emulator-{console_port}) terminated after {e}"
+        print(msg)
+        with (out_folder / "worker_{emu}").open("w") as fp:
+            fp.write(msg)
+        if not marked_done:
+            apklist.task_done()
 
 
 def run(apklist: list[str], out_folder: Path, script: Path):
