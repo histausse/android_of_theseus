@@ -9,8 +9,9 @@ import threading
 import argparse
 import queue
 import datetime
+import traceback
 
-EMULATORS = [f"root34-{i}" for i in range(16)]
+EMULATORS = [f"root34-{i}" for i in range(20)]
 ANDROID_IMG = "system-images;android-34;default;x86_64"
 TIMEOUT = 400
 
@@ -267,7 +268,8 @@ def worker(emu: str, apklist: queue.Queue[str], out_folder: Path, script: Path):
                     apklist.task_done()
                     marked_done = True
                     continue
-
+            if folder.exists():
+                shutil.rmtree(str(folder))
             folder.mkdir(parents=True)
 
             with (
@@ -346,10 +348,13 @@ def worker(emu: str, apklist: queue.Queue[str], out_folder: Path, script: Path):
     except Exception as e:
         msg = f"[{datetime.datetime.now()}] worker for {emu} (emulator-{console_port}) terminated after {e}"
         print(msg)
-        with (out_folder / "worker_{emu}").open("w") as fp:
+        with (out_folder / f"worker_{emu}").open("w") as fp:
             fp.write(msg)
+            fp.write("\n")
+            fp.write("\n".join(traceback.format_exception(e)))
         if not marked_done:
             apklist.task_done()
+        raise e
 
 
 def run(apklist: list[str], out_folder: Path, script: Path):
