@@ -364,9 +364,10 @@ def worker(emu: str, apklist: queue.Queue[str], out_folder: Path, script: Path):
                 )
             )
             print(
-                f"[{datetime.datetime.now()}][{emu}(emulator-{console_port})] end loop, \
-                    {len(list(threading.enumerate()))} threads running, \
-                    {nb_emu_running} emulators running"
+                f"[{datetime.datetime.now()}][{emu}(emulator-{console_port})] end loop, "
+                f"{len(list(threading.enumerate()))} threads running, "
+                f"{nb_emu_running} emulators running, "
+                f"approximately {apklist.qsize()} apk remaining"
             )
     except Exception as e:
         msg = f"[{datetime.datetime.now()}] worker for {emu} (emulator-{console_port}) terminated after {e}"
