@@ -357,7 +357,8 @@ def worker(emu: str, apklist: queue.Queue[str], out_folder: Path, script: Path):
             fp.write("\n".join(traceback.format_exception(e)))
         if not marked_done:
             apklist.task_done()
-        raise e
+        if not apklist.empty():
+            worker(emu, apklist, out_folder, script)
 
 
 def run(apklist: list[str], out_folder: Path, script: Path):
