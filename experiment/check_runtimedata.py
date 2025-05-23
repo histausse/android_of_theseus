@@ -9,6 +9,19 @@ from androguard.core.apk import APK  # type: ignore
 androguard.util.set_log("SUCCESS")  # type: ignore
 
 
+def get_bytecode_classes(bytecode: bytes) -> list[str]:
+    try:
+        dex = DEX(bytecode)
+        return dex.get_classes()
+    except ValueError:
+        apk = APK(bytecode, raw=True, skip_analysis=True)
+        classes = []
+        for dex_bin in apk.get_all_dex():
+            dex = DEX(dex_bin)
+            classes.extend(dex.get_classes())
+        return classes
+
+
 def check_app_result(
     path: Path, app_folder: Path, summary: dict, keep_ref_data: bool = False
 ):
@@ -86,19 +99,17 @@ def check_app_result(
         for file in dyn_load["files"]:
             with open(file, "rb") as fp:
                 dex_bin = fp.read()
-            dex = DEX(dex_bin)
-            classes_by_cl[cl_id].extend(dex.get_classes())
+            classes_by_cl[cl_id].extend(get_bytecode_classes(dex_bin))
 
     # Don't do androguard scan when there is no other dynloading
     if len(data["dyn_code_load"]) != 0:
         apk_name = f"{path.name}.apk"
-        apk = APK(str(app_folder / apk_name))
         cl_id = data["apk_cl_id"]
         if cl_id not in classes_by_cl:
             classes_by_cl[cl_id] = []
-        for dex_bin in apk.get_all_dex():
-            dex = DEX(dex_bin)
-            classes_by_cl[cl_id].extend(dex.get_classes())
+        with (app_folder / apk_name).open("rb") as fp:
+            apk_bin = fp.read()
+        classes_by_cl[cl_id].extend(get_bytecode_classes(apk_bin))
 
     nb_class_collision = 0
     already_found: set[str] = set()
