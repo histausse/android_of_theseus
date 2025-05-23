@@ -24,8 +24,8 @@ TMP_DIR=$(mktemp -d)
 
 python3 -m venv "${FOLDER}/venv"
 
-"${FOLDER}/venv/bin/pip" install "${FOLDER}/../frida"
-"${FOLDER}/venv/bin/pip" install "git+ssh://git@gitlab.inria.fr/CIDRE/malware/grodd-runner.git"
+#"${FOLDER}/venv/bin/pip" install "${FOLDER}/../frida"
+#"${FOLDER}/venv/bin/pip" install "git+ssh://git@gitlab.inria.fr/CIDRE/malware/grodd-runner.git"
 
 ls "${APK_DIR}"/*.apk > "${TMP_DIR}/apklist.txt"
 
