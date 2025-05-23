@@ -9,7 +9,9 @@ from androguard.core.apk import APK  # type: ignore
 androguard.util.set_log("SUCCESS")  # type: ignore
 
 
-def check_app_result(path: Path, app_folder: Path, summary: dict):
+def check_app_result(
+    path: Path, app_folder: Path, summary: dict, keep_ref_data: bool = False
+):
     if (path / "TIMEOUT").exists():
         summary["nb_timeout"] += 1
         return
@@ -21,6 +23,7 @@ def check_app_result(path: Path, app_folder: Path, summary: dict):
         summary["nb_failed"] += 1
         return
 
+    reflections = []
     nb_class_collision_at_invoke = 0
     seen = {}
     for invoke_data in data["invoke_data"]:
@@ -37,6 +40,7 @@ def check_app_result(path: Path, app_folder: Path, summary: dict):
         if cl not in seen[id_]:
             nb_class_collision_at_invoke += 1
         seen[id_].add(cl)
+        reflections.append((*call_site, invoke_data["method"]))
 
     seen = {}
     for invoke_data in data["class_new_inst_data"]:
@@ -53,6 +57,7 @@ def check_app_result(path: Path, app_folder: Path, summary: dict):
         if cl not in seen[id_]:
             nb_class_collision_at_invoke += 1
         seen[id_].add(cl)
+        reflections.append((*call_site, invoke_data["constructor"]))
 
     seen = {}
     for invoke_data in data["cnstr_new_inst_data"]:
@@ -69,6 +74,7 @@ def check_app_result(path: Path, app_folder: Path, summary: dict):
         if cl not in seen[id_]:
             nb_class_collision_at_invoke += 1
         seen[id_].add(cl)
+        reflections.append((*call_site, invoke_data["constructor"]))
 
     classes_by_cl: dict[str, list[str]] = {}
     dyn_load_classes = set()
@@ -102,7 +108,12 @@ def check_app_result(path: Path, app_folder: Path, summary: dict):
     summary["apks"][path.name] = {
         "nb_class_collision": nb_class_collision,
         "nb_class_collision_at_invoke": nb_class_collision_at_invoke,
+        "nb_ref": len(reflections),
+        "reflections": reflections,
     }
+    if not keep_ref_data:
+        summary["apks"][path.name]["reflections"] = None
+
     if nb_class_collision:
         summary["nb_with_class_collision"] += 1
     if nb_class_collision_at_invoke:
@@ -116,10 +127,17 @@ def run(folder: Path, app_folder: Path):
         "nb_with_class_collision": 0,
         "nb_with_class_collision_at_invoke": 0,
         "apks": {},
+        "baseline_reflection": [],
     }
     for p in folder.iterdir():
         if p.is_dir():
-            check_app_result(p, app_folder, summary)
+            check_app_result(p, app_folder, summary, keep_ref_data=True)
+    apk_data = summary["apks"]
+    assert isinstance(apk_data, dict)
+
+    summary["baseline_reflection"] = list(
+        set.intersection(*map(lambda x: set(x["reflections"]), apk_data.values()))
+    )
     print(json.dumps(summary, indent="  "))
 
 
