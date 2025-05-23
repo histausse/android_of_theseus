@@ -89,14 +89,16 @@ def check_app_result(
             dex = DEX(dex_bin)
             classes_by_cl[cl_id].extend(dex.get_classes())
 
-    apk_name = f"{path.name}.apk"
-    apk = APK(str(app_folder / apk_name))
-    cl_id = data["apk_cl_id"]
-    if cl_id not in classes_by_cl:
-        classes_by_cl[cl_id] = []
-    for dex_bin in apk.get_all_dex():
-        dex = DEX(dex_bin)
-        classes_by_cl[cl_id].extend(dex.get_classes())
+    # Don't do androguard scan when there is no other dynloading
+    if len(data["dyn_code_load"]) != 0:
+        apk_name = f"{path.name}.apk"
+        apk = APK(str(app_folder / apk_name))
+        cl_id = data["apk_cl_id"]
+        if cl_id not in classes_by_cl:
+            classes_by_cl[cl_id] = []
+        for dex_bin in apk.get_all_dex():
+            dex = DEX(dex_bin)
+            classes_by_cl[cl_id].extend(dex.get_classes())
 
     nb_class_collision = 0
     already_found: set[str] = set()
