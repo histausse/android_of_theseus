@@ -38,7 +38,7 @@ def check_app_result(
 
     does_reflection = False
     boot_cl_id = ""
-    for cl in data["classloaders"]:
+    for cl in data["classloaders"].values():
         if cl["cname"] == "Ljava/lang/BootClassLoader;":
             boot_cl_id = cl["id"]
 

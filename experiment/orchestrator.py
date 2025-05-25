@@ -11,7 +11,7 @@ import queue
 import datetime
 import traceback
 
-EMULATORS = [f"root34-{i}" for i in range(1)]
+EMULATORS = [f"root34-{i}" for i in range(20)]
 ANDROID_IMG = "system-images;android-34;default;x86_64"
 TIMEOUT = 400
 
