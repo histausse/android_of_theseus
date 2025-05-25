@@ -36,10 +36,18 @@ def check_app_result(
         summary["nb_failed"] += 1
         return
 
+    does_reflection = False
+    boot_cl_id = ""
+    for cl in data["classloaders"]:
+        if cl["cname"] == "Ljava/lang/BootClassLoader;":
+            boot_cl_id = cl["id"]
+
     reflections = []
     nb_class_collision_at_invoke = 0
     seen = {}
     for invoke_data in data["invoke_data"]:
+        if invoke_data["caller_cl_id"] != boot_cl_id:
+            does_reflection = True
         call_site = (
             invoke_data["caller_method"],
             invoke_data["caller_cl_id"],
@@ -53,10 +61,23 @@ def check_app_result(
         if cl not in seen[id_]:
             nb_class_collision_at_invoke += 1
         seen[id_].add(cl)
-        reflections.append((*call_site, invoke_data["method"]))
+
+        cl_class = "unknown"
+        if invoke_data["caller_cl_id"] in data["classloaders"]:
+            cl_class = data["classloaders"][invoke_data["caller_cl_id"]]["cname"]
+        reflections.append(
+            (
+                invoke_data["caller_method"],
+                cl_class,
+                invoke_data["addr"],
+                invoke_data["method"],
+            )
+        )
 
     seen = {}
     for invoke_data in data["class_new_inst_data"]:
+        if invoke_data["caller_cl_id"] != boot_cl_id:
+            does_reflection = True
         call_site = (
             invoke_data["caller_method"],
             invoke_data["caller_cl_id"],
@@ -70,10 +91,23 @@ def check_app_result(
         if cl not in seen[id_]:
             nb_class_collision_at_invoke += 1
         seen[id_].add(cl)
-        reflections.append((*call_site, invoke_data["constructor"]))
+
+        cl_class = "unknown"
+        if invoke_data["caller_cl_id"] in data["classloaders"]:
+            cl_class = data["classloaders"][invoke_data["caller_cl_id"]]["cname"]
+        reflections.append(
+            (
+                invoke_data["caller_method"],
+                cl_class,
+                invoke_data["addr"],
+                invoke_data["constructor"],
+            )
+        )
 
     seen = {}
     for invoke_data in data["cnstr_new_inst_data"]:
+        if invoke_data["caller_cl_id"] != boot_cl_id:
+            does_reflection = True
         call_site = (
             invoke_data["caller_method"],
             invoke_data["caller_cl_id"],
@@ -87,7 +121,18 @@ def check_app_result(
         if cl not in seen[id_]:
             nb_class_collision_at_invoke += 1
         seen[id_].add(cl)
-        reflections.append((*call_site, invoke_data["constructor"]))
+
+        cl_class = "unknown"
+        if invoke_data["caller_cl_id"] in data["classloaders"]:
+            cl_class = data["classloaders"][invoke_data["caller_cl_id"]]["cname"]
+        reflections.append(
+            (
+                invoke_data["caller_method"],
+                cl_class,
+                invoke_data["addr"],
+                invoke_data["constructor"],
+            )
+        )
 
     classes_by_cl: dict[str, list[str]] = {}
     dyn_load_classes = set()
@@ -100,6 +145,9 @@ def check_app_result(
             with open(file, "rb") as fp:
                 dex_bin = fp.read()
             classes_by_cl[cl_id].extend(get_bytecode_classes(dex_bin))
+
+    if len(data["dyn_code_load"]) != 0:
+        does_reflection = True
 
     # Don't do androguard scan when there is no other dynloading
     if len(data["dyn_code_load"]) != 0:
@@ -123,6 +171,7 @@ def check_app_result(
         "nb_class_collision_at_invoke": nb_class_collision_at_invoke,
         "nb_ref": len(reflections),
         "reflections": reflections,
+        "does_reflection": does_reflection,
     }
     if not keep_ref_data:
         summary["apks"][path.name]["reflections"] = None
@@ -145,12 +194,15 @@ def run(folder: Path, app_folder: Path):
     for p in folder.iterdir():
         if p.is_dir():
             check_app_result(p, app_folder, summary, keep_ref_data=True)
-    apk_data = summary["apks"]
-    assert isinstance(apk_data, dict)
 
-    summary["baseline_reflection"] = list(
-        set.intersection(*map(lambda x: set(x["reflections"]), apk_data.values()))
-    )
+    # Strange, looks like there is no baseline? This need investigation
+    # apk_data = summary["apks"]
+    # assert isinstance(apk_data, dict)
+    #
+    # summary["baseline_reflection"] = list(
+    #     set.intersection(*map(lambda x: set(x["reflections"]), apk_data.values()))
+    # )
+
     print(json.dumps(summary, indent="  "))
 
 
