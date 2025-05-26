@@ -22,6 +22,7 @@ def get_bytecode_classes(bytecode: bytes) -> list[str]:
         return classes
 
 
+
 def check_app_result(
     path: Path, app_folder: Path, summary: dict, keep_ref_data: bool = False
 ):
@@ -35,6 +36,14 @@ def check_app_result(
     if "error" in data:
         summary["nb_failed"] += 1
         return
+
+    nb_visited_activity = None
+    with (path / "analysis.err").open("r") as fp:
+        for line in fp:
+            line = line.strip()
+            if "Visited activities:" in line:
+                nb_visited_activity = int(line.split("Visited activities:")[1].strip())
+
 
     does_reflection = False
     boot_cl_id = ""
@@ -134,6 +143,9 @@ def check_app_result(
             )
         )
 
+    if len(data["dyn_code_load"]) != 0:
+        does_reflection = True
+
     classes_by_cl: dict[str, list[str]] = {}
     dyn_load_classes = set()
     for dyn_load in data["dyn_code_load"]:
@@ -146,8 +158,6 @@ def check_app_result(
                 dex_bin = fp.read()
             classes_by_cl[cl_id].extend(get_bytecode_classes(dex_bin))
 
-    if len(data["dyn_code_load"]) != 0:
-        does_reflection = True
 
     # Don't do androguard scan when there is no other dynloading
     if len(data["dyn_code_load"]) != 0:
@@ -166,12 +176,16 @@ def check_app_result(
         nb_class_collision += len(already_found.intersection(cls))
         already_found.update(cls)
 
+
+
     summary["apks"][path.name] = {
         "nb_class_collision": nb_class_collision,
         "nb_class_collision_at_invoke": nb_class_collision_at_invoke,
         "nb_ref": len(reflections),
         "reflections": reflections,
         "does_reflection": does_reflection,
+        "nb_visited_activity": nb_visited_activity,
+        "nb_dyn_loading": len(data["dyn_code_load"]),
     }
     if not keep_ref_data:
         summary["apks"][path.name]["reflections"] = None
