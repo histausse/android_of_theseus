@@ -99,20 +99,20 @@ pub(crate) static SCAL_TO_OBJ_FLOAT: LazyLock<IdMethod> = LazyLock::new(|| {
 pub(crate) static SCAL_TO_OBJ_DOUBLE: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali("Ljava/lang/Double;->valueOf(D)Ljava/lang/Double;").unwrap()
 });
-pub(crate) static GET_CLASS_LOADER: LazyLock<IdMethod> = LazyLock::new(|| {
+pub(crate) static _GET_CLASS_LOADER: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali("Ljava/lang/Class;->getClassLoader()Ljava/lang/ClassLoader;").unwrap()
 });
-pub(crate) static GET_PARENT: LazyLock<IdMethod> = LazyLock::new(|| {
+pub(crate) static _GET_PARENT: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali("Ljava/lang/ClassLoader;->getParent()Ljava/lang/ClassLoader;").unwrap()
 });
-pub(crate) static GET_CLASS: LazyLock<IdMethod> = LazyLock::new(|| {
+pub(crate) static _GET_CLASS: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali("Ljava/lang/Object;->getClass()Ljava/lang/Class;").unwrap()
 });
-pub(crate) static TO_STRING: LazyLock<IdMethod> = LazyLock::new(|| {
+pub(crate) static _TO_STRING: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali("Ljava/lang/Object;->toString()Ljava/lang/String;").unwrap()
 });
 
-pub(crate) static BOOT_CLASS_LOADER_TY: LazyLock<IdType> =
+pub(crate) static _BOOT_CLASS_LOADER_TY: LazyLock<IdType> =
     LazyLock::new(|| IdType::from_smali("Ljava/lang/BootClassLoader;").unwrap());
 pub(crate) static OBJECT_TY: LazyLock<IdType> =
     LazyLock::new(|| IdType::from_smali("Ljava/lang/Object;").unwrap());
@@ -122,26 +122,26 @@ pub(crate) static DELEGATE_LAST_CLASS_LOADER: LazyLock<IdType> =
 pub(crate) static LOG_INFO: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali("Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I").unwrap()
 });
-pub(crate) static STRING_REPLACE_ALL: LazyLock<IdMethod> = LazyLock::new(|| {
+pub(crate) static _STRING_REPLACE_ALL: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali(
         "Ljava/lang/String;->replaceAll(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
     )
     .unwrap()
 });
 
-pub(crate) static GET_APP: LazyLock<IdMethod> = LazyLock::new(|| {
+pub(crate) static _GET_APP: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali(
         "Landroid/app/ActivityThread;->currentApplication()Landroid/app/Application;",
     )
     .unwrap()
 });
-pub(crate) static GET_APP_INFO: LazyLock<IdMethod> = LazyLock::new(|| {
+pub(crate) static _GET_APP_INFO: LazyLock<IdMethod> = LazyLock::new(|| {
     IdMethod::from_smali(
         "Landroid/content/Context;->getApplicationInfo()Landroid/content/pm/ApplicationInfo;",
     )
     .unwrap()
 });
-pub(crate) static APP_INFO_SOURCE_DIR: LazyLock<IdField> = LazyLock::new(|| {
+pub(crate) static _APP_INFO_SOURCE_DIR: LazyLock<IdField> = LazyLock::new(|| {
     IdField::from_smali("Landroid/content/pm/ApplicationInfo;->sourceDir:Ljava/lang/String;")
         .unwrap()
 });

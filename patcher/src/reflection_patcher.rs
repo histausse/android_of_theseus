@@ -1,7 +1,7 @@
 use androscalpel::SmaliName;
 use androscalpel::{Code, IdMethod, IdMethodType, IdType, Instruction, Method};
 use anyhow::{bail, Context, Result};
-use log::{debug, error, warn};
+use log::{debug, warn};
 
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -232,16 +232,10 @@ pub fn transform_method(
                                 "Lcom/example/theseus/dynandref/Main;->factoryInterface(Landroid/app/Activity;Ljava/lang/Class;ZBSCIJFD[Ljava/lang/String;)V"
                             ).unwrap()
                         {
-                            error!(
-                                "Patching instanciation of {}",
-                                ref_data.constructor.class_.__str__()
-                            );
                             let mut cl_id = Some(&ref_data.constructor_cl_id);
                             while let Some(id) = cl_id {
-                                error!("    cl id : {id}");
                                 let cl = runtime_data.classloaders.get(id);
                                 if let Some(cl) = cl {
-                                    error!("    cl str: {}", cl.string_representation.as_str());
                                     cl_id = cl.parent_id.as_ref();
                                 } else {
                                     cl_id = None
@@ -259,26 +253,6 @@ pub fn transform_method(
                             runtime_data,
                         )? {
                             new_insns.push(ins);
-                        }
-                        if ref_data.constructor
-                            == IdMethod::from_smali(
-                                "Lcom/example/theseus/dynandref/AReflectee;-><init>()V",
-                            )
-                            .unwrap()
-                            &&
-                            meth.descriptor == IdMethod::from_smali(
-                                "Lcom/example/theseus/dynandref/Main;->factoryInterface(Landroid/app/Activity;Ljava/lang/Class;ZBSCIJFD[Ljava/lang/String;)V"
-                            ).unwrap()
-                        {
-                            let key = (ref_data.constructor.clone(), ref_data.constructor_cl_id.clone());
-                            error!(
-                                "    tester method: {}",
-                                tester_methods
-                                    .get(&key)
-                                    .unwrap()
-                                    .descriptor
-                                    .__str__()
-                            );
                         }
                     }
                 } else {
@@ -379,32 +353,6 @@ pub fn transform_method(
     // Add the new code
     code.insns.append(&mut new_insns);
     code.registers_size += register_info.get_nb_added_reg();
-    if meth.descriptor
-        == IdMethod::from_smali(
-            "Lcom/example/theseus/dynandref/Main;->\
-             factoryInterface(\
-                Landroid/app/Activity;Ljava/lang/Class;ZBSCIJFD[Ljava/lang/String;\
-             )V",
-        )
-        .unwrap()
-    {
-        for ins in &code.insns {
-            let indent = if let Instruction::Label { .. } = &ins {
-                ""
-            } else {
-                "    "
-            };
-            error!("    {indent}{}", ins.__str__());
-        }
-        use androscalpel::MethodCFG;
-        println!("{}", MethodCFG::new(meth).unwrap().to_dot(true));
-        for (lab, refdatas) in ABORD_LABELS.lock().unwrap().iter() {
-            error!("label {lab}");
-            for refdata in refdatas {
-                error!("    {refdata}");
-            }
-        }
-    }
 
     Ok(())
 }
@@ -414,7 +362,7 @@ fn gen_tester_method(
     method_to_test: IdMethod,
     is_constructor: bool,
     classloader: Option<String>,
-    runtime_data: &RuntimeData,
+    _runtime_data: &RuntimeData,
 ) -> Result<Method> {
     let mut hasher = DefaultHasher::new();
     if let Some(ref id) = classloader {
@@ -491,12 +439,13 @@ fn gen_tester_method(
     const REG_TST_VAL: u8 = 2;
     const REG_DEF_TYPE: u8 = 3;
     const REG_CMP_VAL: u8 = 4;
-    const REG_CLASS_LOADER: u8 = 5;
+    const _REG_CLASS_LOADER: u8 = 5;
     const REG_REGEX: u8 = 6;
     const REG_REPLACE: u8 = 7;
     const REG_IF_RES: u8 = 8;
     const REG_REF_METHOD: u8 = 9;
 
+    /*
     fn standardize_name(reg: u8, old_app_path: &str) -> Vec<Instruction> {
         let tmp_reg = REG_IF_RES;
         vec![
@@ -565,7 +514,7 @@ fn gen_tester_method(
             },
             Instruction::MoveResultObject { to: reg },
         ]
-    }
+    }*/
 
     // Check for arg type
     let mut insns = if !is_constructor {
@@ -723,6 +672,9 @@ fn gen_tester_method(
     }
     insns.push(Instruction::MoveResultObject { to: REG_DEF_TYPE });
 
+    /*  Checking classloader is complicated: adding the classes to the appliction change the
+     *  behavior of classloader, so this tst wont work. To make this work, all classes reinjected
+     *  to the application would need to be renammed.
     //Check the classloader
     let mut current_classloader = classloader
         .as_ref()
@@ -848,6 +800,7 @@ fn gen_tester_method(
                 .find(|cl| cl.cname == *BOOT_CLASS_LOADER_TY)
         };
     }
+    */
 
     // Check Declaring Type
     insns.append(&mut vec![
@@ -1109,12 +1062,12 @@ fn gen_tester_method(
 /// - `abort_label`: the label where to jump if the method does not match `id_method`.
 /// - `tester_methods_class`: the class used to define the methods in `tester_methods`
 /// - `tester_methods`: the methods used to test if a `java.lang.reflect.Method` is a specific method.
-///     Methods are indexed by the IdMethod they detect, and have a name derived from the method
-///     they detect.
+///   Methods are indexed by the IdMethod they detect, and have a name derived from the method
+///   they detect.
 /// - `classloader`: is the runtime data of the classloader that loaded the class defining the
-///     reflected method. If None, the classloader is not tested. Platform classes should probably
-///     not be tested (the bootclassloader can be represented with a null reference, which may
-///     lead to a null pointer exception).
+///   reflected method. If None, the classloader is not tested. Platform classes should probably
+///   not be tested (the bootclassloader can be represented with a null reference, which may
+///   lead to a null pointer exception).
 #[allow(clippy::too_many_arguments)]
 fn test_method(
     method_obj_reg: u16,
@@ -1449,7 +1402,6 @@ fn get_cnstr_new_inst_block(
     if ref_data.caller_method == IdMethod::from_smali("Lcom/example/theseus/dynandref/Main;->factoryInterface(Landroid/app/Activity;Ljava/lang/Class;ZBSCIJFD[Ljava/lang/String;)V").unwrap() {
         ABORD_LABELS.lock().unwrap().entry(abort_label.clone()).or_default().push(ref_data.clone());
     }
-    error!("abort_label: {abort_label}");
 
     let classloader = if ref_data.constructor.class_.is_platform_class() {
         None
@@ -1510,11 +1462,11 @@ fn get_cnstr_new_inst_block(
 /// - `abort_label`: the label where to jump if the method does not match `id_method`.
 /// - `tester_methods_class`: the class used to define the methods in `tester_methods`
 /// - `tester_methods`: the methods used to test if a `java.lang.reflect.Method` is a specific method.
-///     Methods are indexed by the IdMethod they detect, and have a name derived from the method
-///     they detect.
+///   Methods are indexed by the IdMethod they detect, and have a name derived from the method
+///   they detect.
 /// - `classloader`: is the runtime data of the classloader that loaded the. If None, the classloader
-///     is not tested. Platform classes should probably not be tested (the bootclassloader can be
-///     represented with a null reference, which may lead to a null pointer exception).
+///   is not tested. Platform classes should probably not be tested (the bootclassloader can be
+///   represented with a null reference, which may lead to a null pointer exception).
 #[allow(clippy::too_many_arguments)]
 fn test_cnstr(
     cnst_reg: u16,
