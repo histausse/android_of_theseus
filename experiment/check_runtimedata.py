@@ -196,6 +196,7 @@ def check_app_result(
         "reflections": reflections,
         "does_reflection": does_reflection,
         "nb_visited_activity": nb_visited_activity,
+        "dyn_loaded_files": dyn_loaded_files,
         "nb_dyn_loading": len(data["dyn_code_load"]),
     }
     if not keep_ref_data:

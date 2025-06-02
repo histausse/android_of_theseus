@@ -3,7 +3,12 @@ import argparse
 import json
 
 
-def run(summary_p: Path, show_distribution: bool, list_apks_nz_dyn: bool):
+def run(
+    summary_p: Path,
+    show_distribution: bool,
+    list_apks_nz_dyn: bool,
+    show_dload_ads: bool,
+):
     with summary_p.open("r") as fp:
         summary = json.load(fp)
 
@@ -16,7 +21,25 @@ def run(summary_p: Path, show_distribution: bool, list_apks_nz_dyn: bool):
     apk_dyn = set()
     apk_z_dyn = set()
     apk_nz_dyn = set()
+
+    nb_dload = 0
+    nb_dload_fb = 0
+    nb_dload_goo = 0
+    nb_dlaod_fb_and_fb = 0
+    dload_hashes_occ = {}
     for apk, apk_data in summary["apks"].items():
+        for h in apk_data["dyn_loaded_files"].keys():
+            if h not in dload_hashes_occ:
+                dload_hashes_occ[h] = 0
+            dload_hashes_occ[h] += 1
+        for dload in apk_data["dyn_loaded_files"].values():
+            nb_dload += 1
+            if dload["facebook_ads"] and dload["google_ads"]:
+                nb_dlaod_fb_and_fb += 1
+            elif dload["facebook_ads"]:
+                nb_dload_fb += 1
+            elif dload["google_ads"]:
+                nb_dload_goo += 1
         if apk_data["nb_visited_activity"] == 0:
             apk_with_zero_act_visited.add(apk)
             if apk_data["does_reflection"]:
@@ -33,6 +56,24 @@ def run(summary_p: Path, show_distribution: bool, list_apks_nz_dyn: bool):
             if apk_data["nb_dyn_loading"] != 0:
                 apk_dyn.add(apk)
                 apk_nz_dyn.add(apk)
+
+    if show_dload_ads:
+        print("number of dyn load                                            {}")
+        print("number of dyn load of fb ads                                  {}")
+        print("number of dyn load of gooble ads                              {}")
+        print("number of dyn load of gooble+fb (not supposed to happen)      {}")
+        print()
+        hashes = list(dload_hashes_occ.keys())
+        hashes.sort(key=lambda x: dload_hashes_occ[x], reverse=True)
+        i = len(hashes)
+        print(f"bytecode hash              | number of occurence")
+        for h in hashes:
+            occ = dload_hashes_occ[h]
+            if occ <= 1:
+                print(f"{i} other uniq bytecode files")
+                break
+            i -= 1
+            print(f" {h} | {occ}")
 
     if show_distribution:
         print(
@@ -65,8 +106,14 @@ def main():
     )
     parser.add_argument("--list-apks-nz-dyn", action="store_true")
     parser.add_argument("--show-distribution", action="store_true")
+    parser.add_argument("--show-ads", action="store_true")
     args = parser.parse_args()
-    run(args.summary_runtime, args.show_distribution, args.list_apks_nz_dyn)
+    run(
+        args.summary_runtime,
+        args.show_distribution,
+        args.list_apks_nz_dyn,
+        args.show_ads,
+    )
 
 
 if __name__ == "__main__":
