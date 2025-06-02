@@ -1,4 +1,5 @@
 from pathlib import Path
+import hashlib
 import argparse
 import json
 
@@ -12,15 +13,14 @@ androguard.util.set_log("SUCCESS")  # type: ignore
 def get_bytecode_classes(bytecode: bytes) -> list[str]:
     try:
         dex = DEX(bytecode)
-        return dex.get_classes()
+        return list(map(lambda x: x.get_name(), dex.get_classes()))
     except ValueError:
         apk = APK(bytecode, raw=True, skip_analysis=True)
         classes = []
         for dex_bin in apk.get_all_dex():
             dex = DEX(dex_bin)
             classes.extend(dex.get_classes())
-        return classes
-
+        return list(map(lambda x: x.get_name(), classes))
 
 
 def check_app_result(
@@ -43,7 +43,6 @@ def check_app_result(
             line = line.strip()
             if "Visited activities:" in line:
                 nb_visited_activity = int(line.split("Visited activities:")[1].strip())
-
 
     does_reflection = False
     boot_cl_id = ""
@@ -148,6 +147,7 @@ def check_app_result(
 
     classes_by_cl: dict[str, list[str]] = {}
     dyn_load_classes = set()
+    dyn_loaded_files = {}
     for dyn_load in data["dyn_code_load"]:
         dyn_load_classes.add(dyn_load["classloader_class"])
         cl_id = dyn_load["classloader"]
@@ -156,8 +156,21 @@ def check_app_result(
         for file in dyn_load["files"]:
             with open(file, "rb") as fp:
                 dex_bin = fp.read()
-            classes_by_cl[cl_id].extend(get_bytecode_classes(dex_bin))
+            hasher = hashlib.sha256()
+            hasher.update(dex_bin)
+            h = hasher.hexdigest()
+            classes = get_bytecode_classes(dex_bin)
 
+            dyn_loaded_files[h] = {
+                "classes": classes,
+                "facebook_ads": any(
+                    map(lambda x: x.startswith("Lcom/facebook/ads/"), classes)
+                ),
+                "google_ads": any(
+                    map(lambda x: x.startswith("Lcom/google/android/ads/"), classes)
+                ),
+            }
+            classes_by_cl[cl_id].extend(classes)
 
     # Don't do androguard scan when there is no other dynloading
     if len(data["dyn_code_load"]) != 0:
@@ -175,8 +188,6 @@ def check_app_result(
         cls: set[str] = set(cls_l)
         nb_class_collision += len(already_found.intersection(cls))
         already_found.update(cls)
-
-
 
     summary["apks"][path.name] = {
         "nb_class_collision": nb_class_collision,
