@@ -201,7 +201,7 @@ def restore_emu(emu: str, proc: None | subprocess.Popen) -> subprocess.Popen:
                 "emu",
                 "avd",
                 "snapshot",
-                "save",
+                "load",
                 "baseline",
             ],
         )
