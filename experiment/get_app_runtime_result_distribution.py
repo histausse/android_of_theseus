@@ -8,6 +8,7 @@ def run(
     show_distribution: bool,
     list_apks_nz_dyn: bool,
     show_dload_ads: bool,
+    list_uniq_nonads: bool,
 ):
     with summary_p.open("r") as fp:
         summary = json.load(fp)
@@ -28,6 +29,7 @@ def run(
     nb_dload_appsflyer = 0
     dload_hashes_occ = {}
     dload_hashes_ty = {}
+    dload_hashes_apps = {}
     for apk, apk_data in summary["apks"].items():
         for h, dload in apk_data["dyn_loaded_files"].items():
             if h not in dload_hashes_occ:
@@ -41,6 +43,8 @@ def run(
                 dload_hashes_ty[h] = "appsflyer"
             else:
                 dload_hashes_ty[h] = "other"
+
+            dload_hashes_apps[h] = apk
 
             nb_dload += 1
             if dload["facebook_ads"]:
@@ -65,6 +69,13 @@ def run(
             if apk_data["nb_dyn_loading"] != 0:
                 apk_dyn.add(apk)
                 apk_nz_dyn.add(apk)
+
+    if list_uniq_nonads:
+        print("Unique bytecode files not recognized as ads / telemetry:")
+        print(" Bytecode Hash                                                    | apk")
+        for h, apk in dload_hashes_apps.items():
+            if dload_hashes_occ[h] == 1 and dload_hashes_ty[h] == "other":
+                print(f" {h} | {apk}")
 
     if show_dload_ads:
         print(
@@ -126,12 +137,14 @@ def main():
     parser.add_argument("--list-apks-nz-dyn", action="store_true")
     parser.add_argument("--show-distribution", action="store_true")
     parser.add_argument("--show-ads", action="store_true")
+    parser.add_argument("--list-uniq-nonads", action="store_true")
     args = parser.parse_args()
     run(
         args.summary_runtime,
         args.show_distribution,
         args.list_apks_nz_dyn,
         args.show_ads,
+        args.list_uniq_nonads,
     )
 
 
