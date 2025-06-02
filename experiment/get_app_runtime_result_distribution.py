@@ -58,10 +58,18 @@ def run(
                 apk_nz_dyn.add(apk)
 
     if show_dload_ads:
-        print("number of dyn load                                            {}")
-        print("number of dyn load of fb ads                                  {}")
-        print("number of dyn load of gooble ads                              {}")
-        print("number of dyn load of gooble+fb (not supposed to happen)      {}")
+        print(
+            f"number of dyn load                                            {nb_dload}"
+        )
+        print(
+            f"number of dyn load of fb ads                                  {nb_dload_fb}"
+        )
+        print(
+            f"number of dyn load of google ads                              {nb_dload_goo}"
+        )
+        print(
+            f"number of dyn load of google+fb (not supposed to happen)      {nb_dlaod_fb_and_fb}"
+        )
         print()
         hashes = list(dload_hashes_occ.keys())
         hashes.sort(key=lambda x: dload_hashes_occ[x], reverse=True)
