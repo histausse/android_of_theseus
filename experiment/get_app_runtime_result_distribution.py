@@ -27,12 +27,19 @@ def run(
     nb_dload_goo = 0
     nb_dlaod_fb_and_fb = 0
     dload_hashes_occ = {}
+    dload_hashes_ty = {}
     for apk, apk_data in summary["apks"].items():
-        for h in apk_data["dyn_loaded_files"].keys():
+        for h, dload in apk_data["dyn_loaded_files"].items():
             if h not in dload_hashes_occ:
                 dload_hashes_occ[h] = 0
             dload_hashes_occ[h] += 1
-        for dload in apk_data["dyn_loaded_files"].values():
+            if dload["facebook_ads"]:
+                dload_hashes_ty[h] = "fb ads"
+            elif dload["google_ads"]:
+                dload_hashes_ty[h] = "gg ads"
+            else:
+                dload_hashes_ty[h] = "other"
+
             nb_dload += 1
             if dload["facebook_ads"] and dload["google_ads"]:
                 nb_dlaod_fb_and_fb += 1
@@ -75,15 +82,15 @@ def run(
         hashes.sort(key=lambda x: dload_hashes_occ[x], reverse=True)
         i = len(hashes)
         print(
-            f"bytecode hash                                                     | number of occurence"
+            f"bytecode hash                                                     | number of occurence | content"
         )
         for h in hashes:
             occ = dload_hashes_occ[h]
             if occ <= 1:
-                print(f"{i} other uniq bytecode files")
+                print(f"{i} other unique bytecode files")
                 break
             i -= 1
-            print(f" {h} | {occ}")
+            print(f" {h} | {occ:3}                 | {dload_hashes_ty[h]} ")
 
     if show_distribution:
         print(
