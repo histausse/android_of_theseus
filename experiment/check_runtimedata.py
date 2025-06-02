@@ -169,6 +169,9 @@ def check_app_result(
                 "google_ads": any(
                     map(lambda x: x.startswith("Lcom/google/android/ads/"), classes)
                 ),
+                "appsflyer": any(
+                    map(lambda x: x.startswith("Lcom/appsflyer/internal/"), classes)
+                ),
             }
             classes_by_cl[cl_id].extend(classes)
 

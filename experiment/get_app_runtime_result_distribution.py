@@ -25,7 +25,7 @@ def run(
     nb_dload = 0
     nb_dload_fb = 0
     nb_dload_goo = 0
-    nb_dlaod_fb_and_fb = 0
+    nb_dload_appsflyer = 0
     dload_hashes_occ = {}
     dload_hashes_ty = {}
     for apk, apk_data in summary["apks"].items():
@@ -37,16 +37,18 @@ def run(
                 dload_hashes_ty[h] = "fb ads"
             elif dload["google_ads"]:
                 dload_hashes_ty[h] = "gg ads"
+            elif dload["appsflyer"]:
+                dload_hashes_ty[h] = "appsflyer"
             else:
                 dload_hashes_ty[h] = "other"
 
             nb_dload += 1
-            if dload["facebook_ads"] and dload["google_ads"]:
-                nb_dlaod_fb_and_fb += 1
-            elif dload["facebook_ads"]:
+            if dload["facebook_ads"]:
                 nb_dload_fb += 1
-            elif dload["google_ads"]:
+            if dload["google_ads"]:
                 nb_dload_goo += 1
+            if dload["appsflyer"]:
+                nb_dload_appsflyer += 1
         if apk_data["nb_visited_activity"] == 0:
             apk_with_zero_act_visited.add(apk)
             if apk_data["does_reflection"]:
@@ -75,7 +77,7 @@ def run(
             f"number of dyn load of google ads                              {nb_dload_goo}"
         )
         print(
-            f"number of dyn load of google+fb (not supposed to happen)      {nb_dlaod_fb_and_fb}"
+            f"number of dyn load of appsflyer code                          {nb_dload_appsflyer}"
         )
         print()
         hashes = list(dload_hashes_occ.keys())
