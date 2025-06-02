@@ -66,7 +66,9 @@ def run(
         hashes = list(dload_hashes_occ.keys())
         hashes.sort(key=lambda x: dload_hashes_occ[x], reverse=True)
         i = len(hashes)
-        print(f"bytecode hash              | number of occurence")
+        print(
+            f"bytecode hash                                                     | number of occurence"
+        )
         for h in hashes:
             occ = dload_hashes_occ[h]
             if occ <= 1:
