@@ -8,7 +8,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::{dex_types::*, register_manipulation::*, runtime_data::*};
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 // Interesting stuff: https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/reg_type.h;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=94
 // https://cs.android.com/android/platform/superproject/main/+/main:art/runtime/verifier/method_verifier.cc;drc=83db0626fad8c6e0508754fffcbbd58e539d14a5;l=5328
@@ -93,9 +93,11 @@ pub fn transform_method(
         None
     };
 
-    let mut new_insns = vec![];
+    let mut new_insns: Vec<Instruction> = vec![];
     let mut iter = code.insns.iter();
     let mut current_addr_label: Option<String> = None;
+    let mut current_try_block_index = None;
+    let mut old_try_block_end_label = None;
     while let Some(ins) = iter.next() {
         match ins {
             Instruction::InvokeVirtual { method, args }
@@ -153,6 +155,36 @@ pub fn transform_method(
                             Ok((mut save_insns, restore_insns)) => {
                                 restore_reg = restore_insns;
                                 new_insns.append(&mut save_insns);
+                                if !restore_reg.is_empty() {
+                                    if let Some(current_try_block_index) = current_try_block_index {
+                                        if let Instruction::Try { end_label, .. } =
+                                            &mut new_insns[current_try_block_index]
+                                        {
+                                            old_try_block_end_label = Some(end_label.clone());
+                                            *end_label = format!(
+                                                "end_current_try_block_patching_at_{}",
+                                                addr_label.clone()
+                                            );
+                                        }
+                                        new_insns.push(Instruction::Label {
+                                            name: format!(
+                                                "end_current_try_block_patching_at_{}",
+                                                addr_label.clone()
+                                            ),
+                                        });
+                                        new_insns.push(Instruction::Try {
+                                            end_label: format!(
+                                                "end_try_block_patching_at_{}",
+                                                addr_label.clone()
+                                            ),
+                                            handlers: vec![],
+                                            default_handler: Some(format!(
+                                                "handler_try_block_patching_at_{}",
+                                                addr_label.clone()
+                                            )),
+                                        });
+                                    }
+                                }
                             }
                             Err(err) => {
                                 warn!(
@@ -267,11 +299,102 @@ pub fn transform_method(
                 }
                 let end_label = Instruction::Label { name: end_label };
                 new_insns.push(end_label.clone());
+                // If we interupted a try block, catch all exception, restore reg, reopen the try
+                // block, then raise the exception inside of it
+                if !restore_reg.is_empty() {
+                    if let Some(current_try_block_index) = current_try_block_index {
+                        let old_try = if let Instruction::Try {
+                            handlers,
+                            default_handler,
+                            ..
+                        } = &new_insns[current_try_block_index]
+                        {
+                            if let Some(old_try_block_end_label) = &old_try_block_end_label {
+                                Instruction::Try {
+                                    end_label: old_try_block_end_label.clone(),
+                                    handlers: handlers.clone(),
+                                    default_handler: default_handler.clone(),
+                                }
+                            } else {
+                                bail!(
+                                    "Should not happen: could not remember the value of the \
+                                    current try block end label"
+                                );
+                            }
+                        } else {
+                            bail!(
+                                "Should not happen, the index of the current try block does \
+                                not point to a try instruction"
+                            );
+                        };
+                        if register_info.nb_arg_reg == 0 {
+                            register_info.nb_arg_reg += 1;
+                        }
+                        let exception_reg = if register_info.first_arg > u8::MAX as u16 {
+                            warn!(
+                                "Failed to instrument reflection in {} at {}: no 8 bits register \
+                            available to foward exception on try block",
+                                method.__str__(),
+                                addr_label,
+                            );
+                            bail!(
+                                "Failed to instrument reflection in {} at {}: no 8 bits register \
+                            available to foward exception on try block",
+                                method.__str__(),
+                                addr_label,
+                            );
+                        } else {
+                            register_info.first_arg as u8
+                        };
+                        new_insns.append(&mut vec![
+                            Instruction::Label {
+                                name: format!("end_try_block_patching_at_{}", addr_label.clone()),
+                            },
+                            Instruction::Goto {
+                                label: format!(
+                                    "end_handler_try_block_patching_at_{}",
+                                    addr_label.clone()
+                                ),
+                            },
+                            Instruction::Label {
+                                name: format!(
+                                    "handler_try_block_patching_at_{}",
+                                    addr_label.clone()
+                                ),
+                            },
+                            Instruction::MoveException { to: exception_reg },
+                        ]);
+                        new_insns.append(&mut restore_reg.clone());
+                        new_insns.push(old_try);
+                        new_insns.append(&mut vec![
+                            Instruction::Throw { reg: exception_reg },
+                            Instruction::Label {
+                                name: format!(
+                                    "end_handler_try_block_patching_at_{}",
+                                    addr_label.clone()
+                                ),
+                            },
+                        ]);
+                    }
+                }
                 new_insns.append(&mut restore_reg);
                 current_addr_label = None;
             }
-            Instruction::Label { name } if name.starts_with("THESEUS_ADDR_") => {
-                current_addr_label = Some(name.clone());
+            Instruction::Try { .. } => {
+                current_try_block_index = Some(new_insns.len());
+                new_insns.push(ins.clone());
+            }
+            Instruction::Label { name } => {
+                if name.starts_with("THESEUS_ADDR_") {
+                    current_addr_label = Some(name.clone());
+                }
+                if let Some(Instruction::Try { end_label, .. }) =
+                    current_try_block_index.map(|i| &new_insns[i])
+                {
+                    if end_label == name {
+                        current_try_block_index = None;
+                    }
+                }
                 new_insns.push(ins.clone());
             }
             ins => {
@@ -631,15 +754,26 @@ fn gen_tester_method(
                 args: vec![REG_TST_VAL as u16],
             },
             Instruction::MoveResultObject { to: REG_TST_VAL },
-            Instruction::ConstClass {
+        ]);
+        if method_to_test.proto.get_return_type().is_void() {
+            insns.push(Instruction::ConstString {
                 reg: REG_CMP_VAL,
-                lit: method_to_test.proto.get_return_type(),
-            },
-            Instruction::InvokeVirtual {
-                method: CLT_GET_DESCR_STRING.clone(),
-                args: vec![REG_CMP_VAL as u16],
-            },
-            Instruction::MoveResultObject { to: REG_CMP_VAL },
+                lit: "V".into(),
+            });
+        } else {
+            insns.append(&mut vec![
+                Instruction::ConstClass {
+                    reg: REG_CMP_VAL,
+                    lit: method_to_test.proto.get_return_type(),
+                },
+                Instruction::InvokeVirtual {
+                    method: CLT_GET_DESCR_STRING.clone(),
+                    args: vec![REG_CMP_VAL as u16],
+                },
+                Instruction::MoveResultObject { to: REG_CMP_VAL },
+            ]);
+        }
+        insns.append(&mut vec![
             Instruction::InvokeVirtual {
                 method: STR_EQ.clone(),
                 args: vec![REG_CMP_VAL as u16, REG_TST_VAL as u16],
@@ -1242,7 +1376,7 @@ fn get_invoke_block(
             });
             insns.push(Instruction::InvokeStatic {
                 method: get_scalar_to_obj_method(&ret_ty).unwrap(),
-                args: vec![reg_inf.array_val as u16],
+                args: vec![reg_inf.array_val as u16, (reg_inf.array_val + 1) as u16],
             });
             insns.push(move_result);
             insns.push(Instruction::CheckCast {

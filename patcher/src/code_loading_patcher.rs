@@ -78,10 +78,9 @@ fn insert_code_model_class_loaders(apk: &mut Apk, runtime_data: &mut RuntimeData
                 })?;
         }
 
-        assert!(
-            !class_loaders.contains_key(&dyn_data.classloader),
-            "The same class loader should not appear twice in runtime_data.dyn_code_load"
-        );
+        if class_loaders.contains_key(&dyn_data.classloader) {
+            panic!("The same class loader should not appear twice in runtime_data.dyn_code_load, found: {}", &dyn_data.classloader)
+        }
 
         let classes = apk.list_classes();
         let mut class_loader = ClassLoader {

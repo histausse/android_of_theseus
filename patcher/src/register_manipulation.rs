@@ -1,5 +1,5 @@
 use androscalpel::{Instruction, RegType};
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use log::debug;
 
 /// Information about the register used.
@@ -38,7 +38,7 @@ impl RegistersInfo {
     /// second the instructions to restore the registers to their old values.
     ///
     /// `used_reg` is a list of register that cannot be used because directly used by the invoke
-    /// instruction or the move-result ibstruction.
+    /// instruction or the move-result instruction.
     /// `regs_type` is the type of the registers at this point in the code of the method.
     pub fn tmp_reserve_reg(
         &mut self,
