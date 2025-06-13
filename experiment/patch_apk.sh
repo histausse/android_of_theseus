@@ -17,7 +17,7 @@ export RUST_LOG='warn'
 if [ ! -d "${RES_DIR}" ]; then 
     echo "Usage: bash ${0} /path/to/apk/dir /path/to/result/dir"
     echo "    /path/to/apk/dir is the folder where to store the application downloaded"
-    echo "    /path/to/apk/dir is the folder where the dynamic analysis result where stored"
+    echo "    /path/to/result/dir is the folder where the dynamic analysis result where stored"
     exit
 fi
 
@@ -43,11 +43,11 @@ split -a 2 -d -l "${N_CHUNK}" "${TMP_DIR}/apk_list" "${TMP_DIR}/apks/"
 worker() {
   for sha in $(cat "${TMP_DIR}/apks/${1}"); do
     # Check the result folder exist
-    if [ -d "${RES_DIR}/${sha}" ]; then
+    if [ ! -d "${RES_DIR}/${sha}" ]; then
       echo "Dynamic result not found for ${sha} (folder ${RES_DIR}/${sha} not found)"
       continue
     fi
-    if [ -f "${RES_DIR}/${sha}/data.json" ]; then
+    if [ ! -f "${RES_DIR}/${sha}/data.json" ]; then
       echo "Dynamic result not found for ${sha} (folder ${RES_DIR}/${sha}/data.json not found)"
       continue
     fi
