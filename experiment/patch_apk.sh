@@ -6,8 +6,8 @@ PATCHER="${FOLDER}/../patcher/target/release/patcher"
 KEY_PASS='P@ssw0rd!'
 
 ANDROID_HOME=${ANDROID_HOME:-"${HOME}/Android/Sdk"}
-ZIPALIGN="${ANDROID_HOME}/build-tools/34.0.0/zipalign"
-APKSIGNER="${ANDROID_HOME}/build-tools/34.0.0/apksigner"
+ZIPALIGN=${ZIPALIGN:-"${ANDROID_HOME}/build-tools/34.0.0/zipalign"}
+APKSIGNER=${APKSIGNER:-"${ANDROID_HOME}/build-tools/34.0.0/apksigner"}
 
 APK_DIR="${1}"
 RES_DIR="${2}"
@@ -19,6 +19,15 @@ if [ ! -d "${RES_DIR}" ]; then
     echo "    /path/to/apk/dir is the folder where to store the application downloaded"
     echo "    /path/to/result/dir is the folder where the dynamic analysis result where stored"
     exit
+fi
+
+if [ ! -f "${ZIPALIGN}" ]; then
+  echo "zipalign not found, please install 'build-tools;34.0.0' with `sdkmanager 'build-tools;34.0.0'` or call `ZIPALIGN=/path/to/zipalign bash ${0} /path/to/apk/dir /path/to/result/dir`"
+  exit
+fi
+if [ ! -f "${APKSIGNER}" ]; then
+  echo "apksigner not found, please install 'build-tools;34.0.0' with `sdkmanager 'build-tools;34.0.0'` or call `APKSIGNER=/path/to/zipalign bash ${0} /path/to/apk/dir /path/to/result/dir`"
+  exit
 fi
 
 
@@ -61,4 +70,5 @@ for lst in $(ls "${TMP_DIR}/apks/"); do
   worker "${lst}" &
 done
 
-rm -rf "${TMP_DIR}"
+# delating the file used by the workers might not be a good idea
+#rm -rf "${TMP_DIR}"
