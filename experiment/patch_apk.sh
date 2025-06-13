@@ -50,8 +50,8 @@ ls "${APK_DIR}" | sed 's#.*/##' | sed 's/\.apk//' > "${TMP_DIR}/apk_list"
 split -a 2 -d -l "${N_CHUNK}" "${TMP_DIR}/apk_list" "${TMP_DIR}/apks/"
 
 worker() {
+  echo "worker ${1} started"
   for sha in $(cat "${TMP_DIR}/apks/${1}"); do
-    echo "worker ${1} started"
     # Check the result folder exist
     if [ ! -d "${RES_DIR}/${sha}" ]; then
       echo "Dynamic result not found for ${sha} (folder ${RES_DIR}/${sha} not found)"
