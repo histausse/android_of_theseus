@@ -1,4 +1,6 @@
 use anyhow::Context;
+use log::warn;
+use rand::distr::{Alphanumeric, SampleString};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Cursor, Read};
@@ -56,7 +58,16 @@ fn main() {
 
     // Reflection
     let mut test_methods = HashMap::new();
-    let test_class = IdType::class("theseus/T");
+    // Generate a new, unique name
+    let test_class = loop {
+        let ty = IdType::class(&format!(
+            "theseus/{}/T",
+            Alphanumeric.sample_string(&mut rand::rng(), 16),
+        ));
+        if apk.get_class(&ty).is_none() {
+            break ty;
+        }
+    };
     for method in rt_data.get_method_referenced().iter() {
         if let Some(class) = apk.get_class_mut(&method.class_) {
             //println!("{:#?}", class.direct_methods.keys());
@@ -76,7 +87,18 @@ fn main() {
                     })
                     .unwrap()
             };
-            transform_method(method, &rt_data, test_class.clone(), &mut test_methods).unwrap();
+            // May be native method or other kind of android shenanigan.
+            if method.code.is_some() {
+                if let Err(err) =
+                    transform_method(method, &rt_data, test_class.clone(), &mut test_methods)
+                {
+                    warn!(
+                        "Failed to patch method {}: {}",
+                        method.descriptor.__str__(),
+                        err
+                    );
+                };
+            }
         }
     }
     let mut class = Class::new(test_class.get_name()).unwrap();
@@ -85,7 +107,19 @@ fn main() {
         .into_values()
         .map(|v| (v.descriptor.clone(), v))
         .collect();
-    apk.add_class("classes.dex", class).unwrap();
+    // Add the new testing class in a separateed dex file to avoid breaking
+    // the dex method limit.
+    // TODO: check the number of methods in the existing dex files to avoid generated
+    //   a new one each time.
+    let mut i = 2;
+    let new_dex_name = loop {
+        let name = format!("classes{}.dex", i);
+        if !apk.dex_files.contains_key(&name) {
+            break name;
+        };
+        i += 1;
+    };
+    apk.add_class(&new_dex_name, class).unwrap();
     let mut dex_files = vec![];
     let mut files = apk.gen_raw_dex().unwrap();
     let mut i = 0;

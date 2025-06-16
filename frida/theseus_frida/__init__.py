@@ -335,7 +335,7 @@ def collect_runtime(
         "cnstr_new_inst_data": [],
         "dyn_code_load": [],
         "classloaders": {},
-        "app_info": {},
+        "app_info": None,
     }
     try:
         env = dict(os.environ)

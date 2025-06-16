@@ -15,7 +15,7 @@ pub struct RuntimeData {
     /// Additionnal classloader data.
     pub classloaders: HashMap<String, ClassLoaderData>,
     /// Additionnal application data.
-    pub app_info: AppInfo,
+    pub app_info: Option<AppInfo>,
 }
 
 impl RuntimeData {
