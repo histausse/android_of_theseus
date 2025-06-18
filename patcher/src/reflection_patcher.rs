@@ -1346,7 +1346,7 @@ fn get_invoke_block(
         arg_arr,
         reg_inf.first_arg + if ref_data.is_static { 0 } else { 1 },
         reg_inf,
-    ));
+    )?);
     if ref_data.is_static {
         insns.push(Instruction::InvokeStatic {
             method: ref_data.get_static_callee(),
@@ -1375,7 +1375,7 @@ fn get_invoke_block(
                 to: reg_inf.array_val,
             });
             insns.push(Instruction::InvokeStatic {
-                method: get_scalar_to_obj_method(&ret_ty).unwrap(),
+                method: get_scalar_to_obj_method(&ret_ty)?,
                 args: vec![reg_inf.array_val as u16, (reg_inf.array_val + 1) as u16],
             });
             insns.push(move_result);
@@ -1383,12 +1383,19 @@ fn get_invoke_block(
                 reg: res_reg,
                 lit: OBJECT_TY.clone(),
             });
+        } else if ret_ty.is_void() {
+            // Void is represented by a null object
+            insns.push(Instruction::Const {
+                reg: res_reg,
+                lit: 0,
+            });
+            insns.push(move_result);
         } else {
             insns.push(Instruction::MoveResult {
                 to: reg_inf.array_val,
             });
             insns.push(Instruction::InvokeStatic {
-                method: get_scalar_to_obj_method(&ret_ty).unwrap(),
+                method: get_scalar_to_obj_method(&ret_ty)?,
                 args: vec![reg_inf.array_val as u16],
             });
             insns.push(move_result);
@@ -1415,7 +1422,7 @@ fn get_args_from_obj_arr(
     array_reg: u16,
     first_arg_reg: u16,
     reg_inf: &mut RegistersInfo,
-) -> Vec<Instruction> {
+) -> Result<Vec<Instruction>> {
     let mut insns = vec![];
     let mut restore_array = vec![];
     let mut reg_count = 0;
@@ -1455,10 +1462,10 @@ fn get_args_from_obj_arr(
         } else if param.is_double() || param.is_long() {
             insns.push(Instruction::CheckCast {
                 reg: reg_inf.array_val,
-                lit: get_obj_of_scalar(param).unwrap(),
+                lit: get_obj_of_scalar(param)?,
             });
             insns.push(Instruction::InvokeVirtual {
-                method: get_obj_to_scalar_method(param).unwrap(),
+                method: get_obj_to_scalar_method(param)?,
                 args: vec![reg_inf.array_val as u16],
             });
             insns.push(Instruction::MoveResultWide {
@@ -1472,10 +1479,10 @@ fn get_args_from_obj_arr(
         } else {
             insns.push(Instruction::CheckCast {
                 reg: reg_inf.array_val,
-                lit: get_obj_of_scalar(param).unwrap(),
+                lit: get_obj_of_scalar(param)?,
             });
             insns.push(Instruction::InvokeVirtual {
-                method: get_obj_to_scalar_method(param).unwrap(),
+                method: get_obj_to_scalar_method(param)?,
                 args: vec![reg_inf.array_val as u16],
             });
             insns.push(Instruction::MoveResult {
@@ -1489,7 +1496,7 @@ fn get_args_from_obj_arr(
         }
     }
     insns.append(&mut restore_array);
-    insns
+    Ok(insns)
 }
 
 pub(crate) static ABORD_LABELS: std::sync::LazyLock<
@@ -1557,7 +1564,7 @@ fn get_cnstr_new_inst_block(
         arg_arr,
         reg_inf.first_arg + 1,
         reg_inf,
-    ));
+    )?);
     if reg_inf.first_arg < u8::MAX as u16 {
         insns.push(Instruction::NewInstance {
             reg: reg_inf.first_arg as u8,

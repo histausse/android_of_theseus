@@ -43,6 +43,7 @@ fn main() {
     env_logger::init();
     let cli = Cli::parse();
     let mut apk = Apk::load_apk(File::open(&cli.path).unwrap(), labeling, false).unwrap();
+
     //println!("{:#?}", apk.list_classes());
     let mut json = String::new();
     File::open(&cli.runtime_data)
@@ -107,19 +108,9 @@ fn main() {
         .into_values()
         .map(|v| (v.descriptor.clone(), v))
         .collect();
-    // Add the new testing class in a separateed dex file to avoid breaking
-    // the dex method limit.
-    // TODO: check the number of methods in the existing dex files to avoid generated
-    //   a new one each time.
-    let mut i = 2;
-    let new_dex_name = loop {
-        let name = format!("classes{}.dex", i);
-        if !apk.dex_files.contains_key(&name) {
-            break name;
-        };
-        i += 1;
-    };
-    apk.add_class(&new_dex_name, class).unwrap();
+    apk.add_class("classes.dex", class).unwrap();
+    apk.redistribute_classes();
+
     let mut dex_files = vec![];
     let mut files = apk.gen_raw_dex().unwrap();
     let mut i = 0;
