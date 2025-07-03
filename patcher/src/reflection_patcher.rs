@@ -254,26 +254,6 @@ pub fn transform_method(
                             addr_label,
                             ref_data.constructor.__str__()
                         );
-                        if ref_data.constructor
-                            == IdMethod::from_smali(
-                                "Lcom/example/theseus/dynandref/AReflectee;-><init>()V",
-                            )
-                            .unwrap()
-                            &&
-                            meth.descriptor == IdMethod::from_smali(
-                                "Lcom/example/theseus/dynandref/Main;->factoryInterface(Landroid/app/Activity;Ljava/lang/Class;ZBSCIJFD[Ljava/lang/String;)V"
-                            ).unwrap()
-                        {
-                            let mut cl_id = Some(&ref_data.constructor_cl_id);
-                            while let Some(id) = cl_id {
-                                let cl = runtime_data.classloaders.get(id);
-                                if let Some(cl) = cl {
-                                    cl_id = cl.parent_id.as_ref();
-                                } else {
-                                    cl_id = None
-                                };
-                            }
-                        }
                         for ins in get_cnstr_new_inst_block(
                             ref_data,
                             args.as_slice(),
