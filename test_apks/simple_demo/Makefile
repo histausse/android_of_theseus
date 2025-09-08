@@ -4,7 +4,7 @@ JAVA_PATH=/usr/lib/jvm/java-17-openjdk/bin
 JAVAC=/usr/lib/jvm/java-17-openjdk/bin/javac
 JAR=/usr/lib/jvm/java-17-openjdk/bin/jar
 PYTHON=python3
-APP=tests
+APP=demo
 
 PACKAGE=com.example.theseus
 MAIN_ACTIVITY=MainActivity
@@ -51,6 +51,7 @@ build/classes/classes: build/deps.jar build/inline/classes.dex $(shell find java
 	mkdir -p ./build/classes/classes
 	sed -i "s#    private static final String DEX =.*#    private static final String DEX = \"$$(base64 -w 0 build/inline/classes.dex)\";#" java/classes/com/example/theseus/Main.java
 	$(JAVAC) $(JAVAC_ARGS) -d ./build/classes/classes -classpath build/deps.jar:$(SDK_TOOLS)/platforms/android-$(VERSION_B)/android.jar $$(find java/$*/ -type f -regex ".*\.java")
+	rm build/classes/classes/com/example/theseus/Malicious.class
 
 build/%/classes.dex: build/%/classes
 	mkdir -p ./build/$*

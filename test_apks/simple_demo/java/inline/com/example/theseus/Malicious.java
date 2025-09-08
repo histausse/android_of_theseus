@@ -3,7 +3,7 @@ import android.app.Activity;
 
 public class Malicious {
     public static String get_data(String data, Activity ac) {
-        return "SecretData[" + data + "]";
+        return Utils.source(data);
     }
 
     public static String send_data(String data, Activity ac) {

@@ -5,11 +5,8 @@ import android.app.AlertDialog;
 
 
 public class Utils {
-    public static String source() {
-        return "Secret";
-    }
     public static String source(String tag) {
-        return "[" + tag + "] Secret";
+        return "SecretData[" + tag + "]";
     }
 
     public static void popup(Activity ac, String title, String msg) {

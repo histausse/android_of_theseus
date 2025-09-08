@@ -1,3 +1,2 @@
-<com.example.theseus.Utils: java.lang.String source()> -> _SOURCE_
 <com.example.theseus.Utils: java.lang.String source(java.lang.String)> -> _SOURCE_
 <com.example.theseus.Utils: void sink(android.app.Activity,java.lang.String)> -> _SINK_
