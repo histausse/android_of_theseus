@@ -1479,10 +1479,6 @@ fn get_args_from_obj_arr(
     Ok(insns)
 }
 
-pub(crate) static ABORD_LABELS: std::sync::LazyLock<
-    std::sync::Mutex<HashMap<String, Vec<ReflectionCnstrNewInstData>>>,
-> = std::sync::LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
-
 #[allow(clippy::too_many_arguments)]
 fn get_cnstr_new_inst_block(
     ref_data: &ReflectionCnstrNewInstData,
@@ -1520,9 +1516,6 @@ fn get_cnstr_new_inst_block(
         name.hash(&mut hasher);
         format!("end_static_call_{:x}", hasher.finish())
     };
-    if ref_data.caller_method == IdMethod::from_smali("Lcom/example/theseus/dynandref/Main;->factoryInterface(Landroid/app/Activity;Ljava/lang/Class;ZBSCIJFD[Ljava/lang/String;)V").unwrap() {
-        ABORD_LABELS.lock().unwrap().entry(abort_label.clone()).or_default().push(ref_data.clone());
-    }
 
     let classloader = if ref_data.constructor.class_.is_platform_class() {
         None
