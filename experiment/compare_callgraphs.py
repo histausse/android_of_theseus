@@ -113,18 +113,13 @@ def main():
     parser.add_argument(
         "--csv-format",
         action="store_true",
-        help="Show the results in a CSV format (apk sha256, nb edge before, nb edges after, added without glue, added ref only)",
+        help="Show the results in a CSV format (apk sha256, nb edge before, nb edges after, added, added ref only)",
     )
     parser.add_argument(
         "--dyn-bytecode", action="extend", nargs="+", type=Path, default=[]
     )
 
     args = parser.parse_args()
-
-    print(f"app: {args.app}\npatched: {args.patched_app}")
-
-    assert args.app.exists()
-    assert args.patched_app.exists()
 
     apk, _, dx = AnalyzeAPK(args.app)
     cg = dx.get_call_graph()
@@ -136,6 +131,7 @@ def main():
         if zipfile.is_zipfile(dyn):
             _, _, dx = AnalyzeAPK(dyn)
         else:
+            print(dyn)
             dx = Analysis()
             with dyn.open("rb") as fp:
                 raw = fp.read()
@@ -144,6 +140,7 @@ def main():
             dx.create_xref()
 
         dyn_cgs.append(dx.get_call_graph())
+
     nb_methods_app = cg.number_of_nodes()
     nb_methods_pch = cg_patched.number_of_nodes()
     nb_methods_dyn = sum(map(lambda x: x.number_of_nodes(), dyn_cgs))
@@ -157,18 +154,34 @@ def main():
         nb_glue_dyn += nb_g
 
     added_glue = nb_glue_pch - nb_glue_dyn - nb_glue_app
-    added_edges = nb_edges_pch - nb_edges_app - added_glue
+    # added_edges = nb_edges_pch - nb_edges_app - added_glue # meh, don't works for 35065C683441E62C59C0DA0D86E6793256E33E54834E22AD0F70F44C99419E2F?
+    added_edges = nb_edges_pch - nb_edges_app
+    added_ref_only = 0
+
+    all_original_edges = set()
+    for u, v in cg.edges():
+        all_original_edges.add((u.full_name, v.full_name))
+    for cgd in dyn_cgs:
+        for u, v in cgd.edges():
+            all_original_edges.add((u.full_name, v.full_name))
+
+    for u, v in cg_patched.edges():
+        if is_generated_method(u) or is_glue_method(v):
+            continue
+        if (u.full_name, v.full_name) in all_original_edges:
+            continue
+        added_ref_only += 1
 
     if args.csv_format:
         import hashlib
 
         with args.app.open("rb") as fp:
-            hash = hashlib.file_digest(fp, "sha256").hexdigest()
-        print(
-            f"{hash},{nb_edges_app},{nb_edges_pch},{added_edges},{added_edges - nb_edges_dyn}"
-        )
-        # apk sha256, nb edge before, nb edges after, added without glue, added ref only
+            hash = hashlib.file_digest(fp, "sha256").hexdigest().upper()
+        print(f"{hash},{nb_edges_app},{nb_edges_pch},{added_edges},{added_ref_only}")
+        # apk sha256, nb edge before, nb edges after, added, added ref only
     else:
+        print(f"app: {args.app}\npatched: {args.patched_app}")
+
         print("app:")
         print(f"  nodes: {nb_methods_app}")
         print(f"  nb edges {nb_edges_app}")
@@ -182,21 +195,18 @@ def main():
         print(f"  nb edges {nb_edges_pch}")
         print(f"  glue edges {nb_glue_pch}")
         print("")
-        print(
-            f"Total edges added: {added_edges} ({added_edges - nb_edges_dyn} ref only)"
-        )
+        print(f"Total edges added: {added_edges} ({added_ref_only} ref only)")
 
     if args.show_new_methods:
         for u, v in cg_patched.edges():
             if is_generated_method(u) or is_glue_method(v):
                 continue
-            if (u.full_name, v.full_name) in set(
-                map(lambda x: (x[0].full_name, x[1].full_name), cg.edges())
-            ):
+            if (u.full_name, v.full_name) in all_original_edges:
                 continue
-            print(
-                f"{u.get_class_name()}->{u.get_name()}  ==>  {v.get_class_name()}->{v.get_name()}"
-            )
+            # print(
+            #    f"{u.get_class_name()}->{u.get_name()}  ==>  {v.get_class_name()}->{v.get_name()}"
+            # )
+            print(f"{u.full_name}  ==>  {v.full_name}")
 
     return cg_patched
 
