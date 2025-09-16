@@ -131,7 +131,6 @@ def main():
         if zipfile.is_zipfile(dyn):
             _, _, dx = AnalyzeAPK(dyn)
         else:
-            print(dyn)
             dx = Analysis()
             with dyn.open("rb") as fp:
                 raw = fp.read()
