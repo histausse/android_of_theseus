@@ -1,11 +1,15 @@
-# Test
+# Android of Theseus
+
+This is the code implementing the method presented in chapter 5 of the thesis 'The Woes of Android Reverse Engineering: from Large Scale Analysis to Dynamic Deobfuscation', by Jean-Marie Mineau.
+
+The idea is collecting dynamic data like reflection calls and dynamic code loading using Frida, then patch the application to include this data statically. The application can then be analyse with any static analysis tools taking an application as input.
 
 ## Install
 
 ```
 python -m venv venv
 source venv/bin/activate
-pip install 'theseus-autopatcher[grodd] @ git+ssh://git@gitlab.inria.fr/androidoftheseus/android-of-theseus.git#subdirectory=theseus_autopatcher/'
+pip install ./theseus-autopatcher
 ```
 
 ## Run

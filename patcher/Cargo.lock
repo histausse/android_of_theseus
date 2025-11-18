@@ -35,6 +35,7 @@ dependencies = [
 [[package]]
 name = "androscalpel"
 version = "0.1.0"
+source = "git+https://git.mineau.eu/these-android-re/androscalpel?rev=d5006f5#d5006f591c3238fc56ca8f22ee7c391270405149"
 dependencies = [
  "adler",
  "androscalpel_platform_api_list",
@@ -51,10 +52,12 @@ dependencies = [
 [[package]]
 name = "androscalpel_platform_api_list"
 version = "0.1.0"
+source = "git+https://git.mineau.eu/these-android-re/androscalpel?rev=d5006f5#d5006f591c3238fc56ca8f22ee7c391270405149"
 
 [[package]]
 name = "androscalpel_serializer"
 version = "0.1.0"
+source = "git+https://git.mineau.eu/these-android-re/androscalpel?rev=d5006f5#d5006f591c3238fc56ca8f22ee7c391270405149"
 dependencies = [
  "androscalpel_serializer_derive",
  "log",
@@ -63,6 +66,7 @@ dependencies = [
 [[package]]
 name = "androscalpel_serializer_derive"
 version = "0.1.0"
+source = "git+https://git.mineau.eu/these-android-re/androscalpel?rev=d5006f5#d5006f591c3238fc56ca8f22ee7c391270405149"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -131,6 +135,7 @@ dependencies = [
 [[package]]
 name = "apk_frauder"
 version = "0.1.0"
+source = "git+https://git.mineau.eu/these-android-re/androscalpel?rev=d5006f5#d5006f591c3238fc56ca8f22ee7c391270405149"
 dependencies = [
  "androscalpel_serializer",
  "anyhow",
