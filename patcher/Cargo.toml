@@ -7,8 +7,8 @@ license = "AGPL-3.0-or-later"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-androscalpel = { git = "https://git.mineau.eu/these-android-re/androscalpel", rev = "d5006f5", features = ["code-analysis", "platform-list"] }
-apk_frauder = { git = "https://git.mineau.eu/these-android-re/androscalpel", rev = "d5006f5"}
+androscalpel = { git = "https://github.com/histausse/androscalpel", rev = "d5006f5", features = ["code-analysis", "platform-list"] }
+apk_frauder = { git = "https://github.com/histausse/androscalpel", rev = "d5006f5"}
 #androscalpel = { path = "../../androscalpel/androscalpel", features = ["code-analysis", "platform-list"] }
 #apk_frauder = { path = "../../androscalpel/apk_frauder"}
 anyhow = { version = "1.0.95", features = ["backtrace"] }
